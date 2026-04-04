@@ -5,7 +5,8 @@ const elementValidator = v.object({
   score: v.number(),
   summary: v.string(),
   analysis: v.string(),
-  recommendation: v.string(),
+  businessImpact: v.string(),
+  recommendations: v.array(v.string()),
 });
 
 const elementsValidator = v.object({
@@ -58,7 +59,8 @@ const EMPTY_ELEMENT = {
   score: 0,
   summary: "",
   analysis: "",
-  recommendation: "",
+  businessImpact: "",
+  recommendations: [] as string[],
 };
 
 const EMPTY_ELEMENTS = {

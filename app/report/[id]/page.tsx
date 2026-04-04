@@ -9,11 +9,15 @@ import {
   setVerificationCookie,
 } from "@/lib/report-cookie";
 import { ScoreRing } from "@/components/report/ScoreRing";
-import { ElementCard } from "@/components/report/ElementCard";
+import { ScoreContext } from "@/components/report/ScoreContext";
 import { GruntTestBadge } from "@/components/report/GruntTestBadge";
+import { ElementPreview } from "@/components/report/ElementPreview";
 import { VerifyPrompt } from "@/components/report/VerifyPrompt";
+import { BusinessImpactCard } from "@/components/report/BusinessImpactCard";
+import { ActionPlanCard } from "@/components/report/ActionPlanCard";
+import { StrengthCard } from "@/components/report/StrengthCard";
 import { CreateAccountPrompt } from "@/components/report/CreateAccountPrompt";
-import { SITE } from "@/lib/constants";
+import { ReportCTA } from "@/components/report/ReportCTA";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
@@ -29,6 +33,8 @@ const ELEMENT_NAMES: Record<string, string> = {
   transformation: "Transformation (Success)",
 };
 
+const WEAK_THRESHOLD = 6;
+
 export async function generateMetadata({
   params,
 }: {
@@ -38,12 +44,20 @@ export async function generateMetadata({
   return buildMetadata({
     title: "Signal Score Report",
     description:
-      "Your personalised website messaging audit based on the StoryBrand framework.",
+      "Your personalised website messaging audit powered by The Signal Method.",
     path: `/report/${id}`,
   });
 }
 
 type AccessTier = "public" | "verified";
+
+interface ReportElement {
+  score: number;
+  summary: string;
+  analysis: string;
+  businessImpact: string;
+  recommendations: string[];
+}
 
 export default async function ReportPage({
   params,
@@ -55,7 +69,6 @@ export default async function ReportPage({
   const { id } = await params;
   const { token } = await searchParams;
 
-  // Fetch the report with lead data
   let data;
   try {
     data = await convex.query(api.signalReports.getByIdWithLead, {
@@ -73,20 +86,17 @@ export default async function ReportPage({
 
   // Determine access tier
   let tier: AccessTier = "public";
-
-  // Check admin
   const user = await currentUser();
   const userEmail = user?.emailAddresses[0]?.emailAddress?.toLowerCase();
   const isAdmin = userEmail === ADMIN_EMAIL;
 
   if (isAdmin) {
-    tier = "verified"; // Admin sees everything
+    tier = "verified";
   } else if (report.accessLevel === "verified") {
     const hasCookie = await hasVerificationCookie(id);
     const isClerkOwner = report.clerkUserId && user?.id === report.clerkUserId;
     tier = hasCookie || isClerkOwner ? "verified" : "public";
   } else {
-    // Check magic link token
     if (token && token === report.verifyToken) {
       await setVerificationCookie(id);
       if (report.accessLevel === "public") {
@@ -102,10 +112,7 @@ export default async function ReportPage({
   }
 
   const showVerified = tier === "verified";
-
-  // Show account creation prompt if verified but no Clerk account linked
-  const showCreateAccount =
-    showVerified && !report.clerkUserId && !isAdmin;
+  const showCreateAccount = showVerified && !report.clerkUserId && !isAdmin;
 
   const reportDate = new Date(report.createdAt).toLocaleDateString("en-GB", {
     day: "numeric",
@@ -115,13 +122,17 @@ export default async function ReportPage({
 
   const elementEntries = Object.entries(report.elements) as [
     string,
-    {
-      score: number;
-      summary: string;
-      analysis: string;
-      recommendation: string;
-    },
+    ReportElement,
   ][];
+
+  // Split elements into weak (<=6) and strong (7+)
+  const weakElements = elementEntries
+    .filter(([, el]) => el.score <= WEAK_THRESHOLD)
+    .sort(([, a], [, b]) => a.score - b.score);
+
+  const strongElements = elementEntries
+    .filter(([, el]) => el.score > WEAK_THRESHOLD)
+    .sort(([, a], [, b]) => b.score - a.score);
 
   return (
     <div className="mx-auto max-w-[800px] px-[clamp(1.25rem,4vw,3rem)] py-[clamp(3rem,6vw,5rem)]">
@@ -136,9 +147,12 @@ export default async function ReportPage({
         <p className="mt-2 text-sm text-muted">{reportDate}</p>
       </div>
 
-      {/* Score ring — PUBLIC */}
-      <div className="mb-10 flex justify-center" data-reveal>
-        <ScoreRing score={report.overallScore} size={220} />
+      {/* Score ring + context — PUBLIC */}
+      <div className="mb-10" data-reveal>
+        <div className="flex justify-center">
+          <ScoreRing score={report.overallScore} size={220} />
+        </div>
+        <ScoreContext score={report.overallScore} />
       </div>
 
       {/* Grunt Test — PUBLIC */}
@@ -162,108 +176,128 @@ export default async function ReportPage({
         </p>
       </div>
 
+      {/* Element preview — PUBLIC (scores visible, details locked) */}
+      {!showVerified && (
+        <ElementPreview
+          elements={elementEntries.map(([key, el]) => [
+            key,
+            { score: el.score, summary: el.summary },
+          ])}
+          names={ELEMENT_NAMES}
+          url={report.url}
+        />
+      )}
+
       {/* Verify prompt — shown when NOT verified */}
       {!showVerified && <VerifyPrompt reportId={id} />}
 
-      {/* Strengths — VERIFIED */}
-      {showVerified && report.strengths.length > 0 && (
-        <div className="mb-10" data-reveal>
-          <h2 className="mb-4 text-lg font-bold text-charcoal">
-            What your site does well
-          </h2>
-          <ul className="space-y-2">
-            {report.strengths.map((strength: string, i: number) => (
-              <li key={i} className="flex items-start gap-3">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  className="mt-0.5 shrink-0 text-teal"
-                >
-                  <path
-                    d="M9 12l2 2 4-4"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <span className="text-[0.9rem] leading-[1.6] text-slate">
-                  {strength}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Element breakdown — VERIFIED (scores + summaries), PAID (full) */}
+      {/* ── VERIFIED CONTENT: NARRATIVE FLOW ── */}
       {showVerified && (
-        <div className="mb-4" data-reveal>
-          <h2 className="mb-6 text-lg font-bold text-charcoal">
-            Element-by-element breakdown
-          </h2>
-          <div className="space-y-4">
-            {elementEntries.map(([key, el]) => (
-              <ElementCard
-                key={key}
-                name={ELEMENT_NAMES[key] || key}
-                score={el.score}
-                summary={el.summary}
-                analysis={el.analysis}
-                recommendation={el.recommendation}
-              />
-            ))}
+        <>
+          {/* Context intro */}
+          <div className="mb-10" data-reveal>
+            <p className="text-[0.95rem] leading-[1.8] text-slate">
+              Below is your full Signal Score breakdown. Each element measures a
+              specific part of how your website communicates to potential
+              customers — and directly affects whether visitors become paying
+              clients. We&rsquo;ve analysed your site against The Signal Method
+              framework and identified exactly where you&rsquo;re losing leads
+              and how to fix it.
+            </p>
           </div>
-        </div>
-      )}
 
-      {/* Full summary — VERIFIED */}
-      {showVerified && report.fullSummary && (
-        <div
-          className="mb-10 rounded-2xl border border-border bg-warm-grey p-8"
-          data-reveal
-        >
-          <h2 className="mb-4 text-lg font-bold text-charcoal">
-            Overall Assessment
-          </h2>
-          <p className="text-[0.95rem] leading-[1.8] text-slate">
-            {report.fullSummary}
-          </p>
-        </div>
-      )}
+          {/* 1. What's costing you customers */}
+          {weakElements.length > 0 && (
+            <div className="mb-10" data-reveal>
+              <h2 className="mb-2 text-lg font-bold text-charcoal">
+                What&rsquo;s costing you customers
+              </h2>
+              <p className="mb-6 text-[0.85rem] text-muted">
+                These elements scored 6 or below — each one represents visitors
+                who leave without getting in touch.
+              </p>
+              <div className="space-y-4">
+                {weakElements.map(([key, el]) => (
+                  <BusinessImpactCard
+                    key={key}
+                    name={ELEMENT_NAMES[key] || key}
+                    score={el.score}
+                    businessImpact={el.businessImpact}
+                    analysis={el.analysis}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
-      {/* Create account prompt — shown after payment if no account */}
-      {showCreateAccount && (
-        <CreateAccountPrompt reportId={id} email={lead?.email ?? ""} />
-      )}
+          {/* 2. Your personalised action plan */}
+          {weakElements.length > 0 && (
+            <div className="mb-10" data-reveal>
+              <h2 className="mb-2 text-lg font-bold text-charcoal">
+                Your personalised action plan
+              </h2>
+              <p className="mb-6 text-[0.85rem] text-muted">
+                Specific fixes for each weak element — implement these and your
+                score will climb.
+              </p>
+              <div className="space-y-4">
+                {weakElements.map(([key, el]) => (
+                  <ActionPlanCard
+                    key={key}
+                    name={ELEMENT_NAMES[key] || key}
+                    recommendations={el.recommendations}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
-      {/* Footer CTA */}
-      <div className="mt-12 text-center" data-reveal>
-        <h2 className="mb-3 text-xl font-bold text-charcoal">
-          Want someone to fix this for you?
-        </h2>
-        <p className="mb-6 text-[0.95rem] text-slate">
-          Daniel can walk you through your report and show you what your site
-          could look like with these changes applied.
-        </p>
-        <a
-          href={SITE.phoneTel}
-          className="inline-flex items-center gap-2 rounded-[60px] bg-teal px-8 py-3 text-sm font-semibold text-white transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(13,115,119,0.3)]"
-        >
-          Call Daniel — {SITE.phone}
-        </a>
-        <p className="mt-3 text-xs text-muted">
-          Or{" "}
-          <a
-            href={`mailto:${SITE.email}?subject=My Signal Score report`}
-            className="font-semibold text-teal transition-colors hover:text-teal-deep"
-          >
-            email Daniel
-          </a>
-        </p>
-      </div>
+          {/* 3. What you're doing well */}
+          {strongElements.length > 0 && (
+            <div className="mb-10" data-reveal>
+              <h2 className="mb-2 text-lg font-bold text-charcoal">
+                What you&rsquo;re doing well
+              </h2>
+              <p className="mb-6 text-[0.85rem] text-muted">
+                Keep doing these — they&rsquo;re already working in your favour.
+              </p>
+              <div className="space-y-3">
+                {strongElements.map(([key, el]) => (
+                  <StrengthCard
+                    key={key}
+                    name={ELEMENT_NAMES[key] || key}
+                    score={el.score}
+                    summary={el.summary}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Overall assessment */}
+          {report.fullSummary && (
+            <div
+              className="mb-10 rounded-2xl border border-border bg-warm-grey p-8"
+              data-reveal
+            >
+              <h2 className="mb-4 text-lg font-bold text-charcoal">
+                Overall Assessment
+              </h2>
+              <p className="text-[0.95rem] leading-[1.8] text-slate">
+                {report.fullSummary}
+              </p>
+            </div>
+          )}
+
+          {/* Account creation prompt */}
+          {showCreateAccount && (
+            <CreateAccountPrompt reportId={id} email={lead?.email ?? ""} />
+          )}
+
+          {/* Primary + secondary CTA */}
+          <ReportCTA reportId={id} phone={lead?.phone ?? ""} />
+        </>
+      )}
     </div>
   );
 }

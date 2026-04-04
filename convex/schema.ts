@@ -8,6 +8,7 @@ export default defineSchema({
     email: v.string(),
     firstName: v.optional(v.string()),
     name: v.optional(v.string()),
+    phone: v.optional(v.string()),
     website: v.optional(v.string()),
     anonymousIds: v.array(v.string()),
     sources: v.array(v.string()),
@@ -68,43 +69,50 @@ export default defineSchema({
         score: v.number(),
         summary: v.string(),
         analysis: v.string(),
-        recommendation: v.string(),
+        businessImpact: v.string(),
+        recommendations: v.array(v.string()),
       }),
       problem: v.object({
         score: v.number(),
         summary: v.string(),
         analysis: v.string(),
-        recommendation: v.string(),
+        businessImpact: v.string(),
+        recommendations: v.array(v.string()),
       }),
       guide: v.object({
         score: v.number(),
         summary: v.string(),
         analysis: v.string(),
-        recommendation: v.string(),
+        businessImpact: v.string(),
+        recommendations: v.array(v.string()),
       }),
       plan: v.object({
         score: v.number(),
         summary: v.string(),
         analysis: v.string(),
-        recommendation: v.string(),
+        businessImpact: v.string(),
+        recommendations: v.array(v.string()),
       }),
       cta: v.object({
         score: v.number(),
         summary: v.string(),
         analysis: v.string(),
-        recommendation: v.string(),
+        businessImpact: v.string(),
+        recommendations: v.array(v.string()),
       }),
       stakes: v.object({
         score: v.number(),
         summary: v.string(),
         analysis: v.string(),
-        recommendation: v.string(),
+        businessImpact: v.string(),
+        recommendations: v.array(v.string()),
       }),
       transformation: v.object({
         score: v.number(),
         summary: v.string(),
         analysis: v.string(),
-        recommendation: v.string(),
+        businessImpact: v.string(),
+        recommendations: v.array(v.string()),
       }),
     }),
     quickWin: v.string(),
@@ -127,6 +135,20 @@ export default defineSchema({
     .index("by_url", ["url"])
     .index("by_createdAt", ["createdAt"])
     .index("by_status", ["status"]),
+
+  callbackRequests: defineTable({
+    leadId: v.id("leads"),
+    reportId: v.id("signalReports"),
+    phone: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("contacted"),
+      v.literal("closed"),
+    ),
+    createdAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_createdAt", ["createdAt"]),
 
   // ── FUTURE TABLES (defined now, populated later) ──
 

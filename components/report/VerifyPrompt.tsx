@@ -1,0 +1,92 @@
+"use client";
+
+import { useState } from "react";
+
+interface VerifyPromptProps {
+  reportId: string;
+}
+
+export function VerifyPrompt({ reportId }: VerifyPromptProps) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch(`/api/report/${reportId}/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code.trim() }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        window.location.reload();
+        return;
+      }
+
+      setError(data.message || "Invalid code. Please try again.");
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="my-10 rounded-2xl border border-border bg-warm-grey p-8 text-center">
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-teal/10">
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          className="text-teal"
+        >
+          <path
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+      <h3 className="mb-2 text-lg font-bold text-charcoal">
+        See what&rsquo;s costing you customers
+      </h3>
+      <p className="mb-6 text-[0.9rem] text-slate">
+        Enter your code to unlock your full breakdown — including detailed
+        analysis and personalised recommendations for every element.
+      </p>
+      <form onSubmit={handleSubmit} className="mx-auto max-w-xs">
+        <input
+          type="text"
+          inputMode="numeric"
+          maxLength={6}
+          value={code}
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+          placeholder="Enter 6-digit code"
+          className="w-full rounded-xl border border-border bg-white px-4 py-3 text-center text-lg font-semibold tracking-[0.3em] text-charcoal placeholder:text-muted placeholder:tracking-normal focus:border-teal focus:outline-none"
+          disabled={loading}
+        />
+        {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+        <button
+          type="submit"
+          disabled={loading || code.length !== 6}
+          className="mt-4 w-full rounded-[60px] bg-teal px-6 py-3 text-sm font-semibold text-white transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(13,115,119,0.3)] disabled:opacity-50 disabled:hover:translate-y-0"
+        >
+          {loading ? "Verifying..." : "Verify"}
+        </button>
+      </form>
+      <p className="mt-4 text-xs text-muted">
+        Or check your email for a magic link — click it and you&rsquo;re in.
+      </p>
+    </div>
+  );
+}
