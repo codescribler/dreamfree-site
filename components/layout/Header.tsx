@@ -79,9 +79,11 @@ export function Header() {
   return (
     <header
       className={`fixed top-0 right-0 left-0 z-50 px-[clamp(1.25rem,4vw,3rem)] py-4 transition-all duration-400 ease-smooth ${
-        scrolled
-          ? "bg-cream/85 shadow-[0_1px_0_var(--color-border),inset_0_1px_0_rgba(255,255,255,0.5)] backdrop-blur-[20px] backdrop-saturate-[1.4]"
-          : "bg-transparent"
+        menuOpen
+          ? "bg-cream"
+          : scrolled
+            ? "bg-cream/85 shadow-[0_1px_0_var(--color-border),inset_0_1px_0_rgba(255,255,255,0.5)] backdrop-blur-[20px] backdrop-saturate-[1.4]"
+            : "bg-transparent"
       }`}
     >
       <nav
