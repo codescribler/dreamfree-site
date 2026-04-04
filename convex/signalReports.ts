@@ -160,6 +160,24 @@ export const markVerified = mutation({
   },
 });
 
+/** Update verification credentials (for email correction / resend). */
+export const updateVerifyCredentials = mutation({
+  args: {
+    reportId: v.id("signalReports"),
+    verifyCode: v.string(),
+    verifyToken: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const report = await ctx.db.get(args.reportId);
+    if (report && report.accessLevel === "public") {
+      await ctx.db.patch(args.reportId, {
+        verifyCode: args.verifyCode,
+        verifyToken: args.verifyToken,
+      });
+    }
+  },
+});
+
 /** Link a Clerk user ID to a report after account creation. */
 export const linkClerkUser = mutation({
   args: {

@@ -1,1 +1,328 @@
 @import "tailwindcss";
+
+/*
+ * Dreamfree Design System — Tailwind 4 Theme
+ *
+ * All design tokens are defined here as the single source of truth.
+ * Component-level styles live in their respective React components via
+ * Tailwind utility classes. Only global base styles and keyframes belong here.
+ */
+
+/* ── DESIGN TOKENS ── */
+@theme {
+  /* Colours */
+  --color-charcoal: #1a1a2e;
+  --color-charcoal-light: #2a2a42;
+  --color-slate: #4a4a68;
+  --color-muted: #7b7b96;
+  --color-teal: #0d7377;
+  --color-teal-deep: #095558;
+  --color-teal-bright: #10918a;
+  --color-teal-glow: rgba(13, 115, 119, 0.12);
+  --color-cream: #fafaf8;
+  --color-warm-grey: #f3f2ee;
+  --color-border: #e2e1dc;
+  --color-offblack: #111122;
+
+  /* Typography */
+  --font-sans:
+    var(--font-outfit), system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --font-serif: var(--font-playfair), Georgia, serif;
+
+  /* Layout */
+  --container-max: 1340px;
+
+  /* Border Radius */
+  --radius-DEFAULT: 16px;
+  --radius-sm: 10px;
+  --radius-pill: 60px;
+
+  /* Easing Curves */
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-custom: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Animations */
+  --animate-blob-1: blob-drift-1 25s ease-in-out infinite;
+  --animate-blob-2: blob-drift-2 30s ease-in-out infinite;
+  --animate-blob-3: blob-drift-3 20s ease-in-out infinite;
+  --animate-blob-fade-in: blob-fade-in 2s var(--ease-smooth) forwards;
+  --animate-shimmer-sweep: shimmer-sweep 0.8s var(--ease-smooth) forwards;
+  --animate-cta-bounce: cta-bounce 0.5s var(--ease-spring) 0.2s;
+  --animate-marquee: marquee 30s linear infinite;
+  --animate-nudge-pulse: nudge-pulse 1.6s var(--ease-out-custom) forwards;
+  --animate-fade-in-up: fade-in-up 0.6s var(--ease-smooth) both;
+  --animate-ring-expand: ring-expand 0.8s ease-out forwards;
+  --animate-score-fill: score-fill 1.5s var(--ease-smooth) forwards;
+  --animate-spinner: spinner 1s linear infinite;
+  --animate-showcase-bounce: showcase-bounce 1.5s ease-in-out infinite;
+  --animate-fade-in: fade-in 0.3s ease forwards;
+  --animate-modal-in: modal-in 0.35s var(--ease-smooth) forwards;
+}
+
+/* ── KEYFRAMES ── */
+
+@keyframes blob-fade-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes blob-drift-1 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(-30px, 20px) scale(1.05);
+  }
+  66% {
+    transform: translate(15px, -15px) scale(0.97);
+  }
+}
+
+@keyframes blob-drift-2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(25px, -20px) scale(1.03);
+  }
+  66% {
+    transform: translate(-10px, 25px) scale(0.95);
+  }
+}
+
+@keyframes blob-drift-3 {
+  0%,
+  100% {
+    transform: translateX(-50%) translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translateX(-50%) translate(20px, 15px) scale(1.06);
+  }
+}
+
+@keyframes shimmer-sweep {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes cta-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes nudge-pulse {
+  0% {
+    width: 10px;
+    height: 10px;
+    opacity: 0.5;
+    border-width: 2px;
+  }
+  100% {
+    width: 280px;
+    height: 280px;
+    opacity: 0;
+    border-width: 1px;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes showcase-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(5px);
+  }
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ring-expand {
+  0% {
+    transform: scale(1);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+@keyframes score-fill {
+  0% {
+    stroke-dashoffset: 553;
+  }
+}
+
+@keyframes spinner {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── BASE STYLES ── */
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--color-slate);
+    background: var(--color-cream);
+    overflow-x: hidden;
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Heading defaults */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    color: var(--color-charcoal);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+  }
+
+  /* Prose defaults */
+  p {
+    max-width: 65ch;
+    margin-bottom: 1.25rem;
+  }
+
+  strong {
+    font-weight: 600;
+    color: var(--color-charcoal);
+  }
+
+  /* Focus visible — accessible, styled ring for keyboard navigation */
+  :focus-visible {
+    outline: 2px solid var(--color-teal);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Skip to main content link */
+  .skip-link {
+    position: absolute;
+    top: -100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.75rem 1.5rem;
+    background: var(--color-charcoal);
+    color: white;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-radius: var(--radius-sm);
+    z-index: 200;
+    transition: top 0.2s ease;
+  }
+
+  .skip-link:focus {
+    top: 1rem;
+  }
+}
+
+/* ── SCROLL REVEAL ── */
+
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.6s var(--ease-smooth),
+    transform 0.6s var(--ease-smooth);
+  transition-delay: calc(var(--i, 0) * 0.08s);
+}
+
+[data-reveal].visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── REDUCED MOTION ── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
