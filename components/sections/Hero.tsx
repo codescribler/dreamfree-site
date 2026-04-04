@@ -36,9 +36,9 @@ export function Hero() {
             className="mb-10 max-w-[50ch] text-[clamp(1rem,1.6vw,1.15rem)] leading-[1.75] text-slate"
             data-reveal
           >
-            Most business websites score below 40 out of 100 on the five things
-            that actually drive enquiries. Find out where yours stands — free, in
-            60 seconds.
+            There are five things that make someone pick up the phone — or
+            leave. Most business websites get fewer than half right. Check yours
+            free, in 60 seconds.
           </p>
           <div
             className="flex flex-wrap items-center gap-5 max-[480px]:flex-col max-[480px]:items-stretch"

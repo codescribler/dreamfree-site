@@ -9,6 +9,7 @@ import { SignalFlow } from "@/components/signal-flow/SignalFlow";
 import { ConvexClientProvider } from "@/components/providers/ConvexClientProvider";
 import { SITE } from "@/lib/constants";
 import { organizationSchema } from "@/lib/structured-data";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -66,6 +67,7 @@ export default function RootLayout({
           </main>
           <Footer />
           <SignalFlow />
+          <Analytics />
         </ConvexClientProvider>
       </body>
     </html>
