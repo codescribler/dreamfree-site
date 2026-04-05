@@ -38,7 +38,7 @@ export function Hero() {
           >
             There are five things that make someone pick up the phone — or
             leave. Most business websites get fewer than half right. Check yours
-            free, in 60 seconds.
+            for free, in 60 seconds.
           </p>
           <div
             className="flex flex-wrap items-center gap-5 max-[480px]:flex-col max-[480px]:items-stretch"
