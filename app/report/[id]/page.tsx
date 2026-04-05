@@ -13,7 +13,7 @@ import { VerifyPrompt } from "@/components/report/VerifyPrompt";
 import { BusinessImpactCard } from "@/components/report/BusinessImpactCard";
 import { ActionPlanCard } from "@/components/report/ActionPlanCard";
 import { StrengthCard } from "@/components/report/StrengthCard";
-import { CreateAccountPrompt } from "@/components/report/CreateAccountPrompt";
+
 import { ReportCTA } from "@/components/report/ReportCTA";
 import { ShareForm } from "@/components/report/ShareForm";
 import { ReportActions } from "@/components/report/ReportActions";
@@ -109,7 +109,6 @@ export default async function ReportPage({
   }
 
   const showVerified = tier === "verified";
-  const showCreateAccount = showVerified && !report.clerkUserId;
 
   const reportDate = new Date(report.createdAt).toLocaleDateString("en-GB", {
     day: "numeric",
@@ -284,11 +283,6 @@ export default async function ReportPage({
                 {report.fullSummary}
               </p>
             </div>
-          )}
-
-          {/* Account creation prompt */}
-          {showCreateAccount && (
-            <CreateAccountPrompt reportId={id} email={lead?.email ?? ""} />
           )}
 
           {/* Primary + secondary CTA */}
