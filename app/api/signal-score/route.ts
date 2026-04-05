@@ -238,51 +238,52 @@ export async function POST(req: NextRequest) {
     verifyToken,
   });
 
-  // 7. Trigger emails (fire and forget — don't block the response)
-  convex
-    .action(api.emails.sendSignalScoreToVisitor, {
-      firstName,
-      email,
-      url,
-      overallScore,
-      gruntTestPass: llmResult.gruntTest.pass,
-      reportId: reportId as string,
-      verifyCode,
-      verifyToken,
-    })
-    .catch((err) => console.error("Visitor email failed:", err));
+  // 7. Trigger emails and save form submission (awaited so Vercel doesn't kill the process)
+  await Promise.all([
+    convex
+      .action(api.emails.sendSignalScoreToVisitor, {
+        firstName,
+        email,
+        url,
+        overallScore,
+        gruntTestPass: llmResult.gruntTest.pass,
+        reportId: reportId as string,
+        verifyCode,
+        verifyToken,
+      })
+      .catch((err) => console.error("Visitor email failed:", err)),
 
-  convex
-    .action(api.emails.sendSignalScoreToAdmin, {
-      firstName,
-      email,
-      url,
-      customerDescription,
-      overallScore,
-      elementScores: {
-        character: llmResult.elements.character.score,
-        problem: llmResult.elements.problem.score,
-        guide: llmResult.elements.guide.score,
-        plan: llmResult.elements.plan.score,
-        cta: llmResult.elements.cta.score,
-        stakes: llmResult.elements.stakes.score,
-        transformation: llmResult.elements.transformation.score,
-      },
-    })
-    .catch((err) => console.error("Admin email failed:", err));
+    convex
+      .action(api.emails.sendSignalScoreToAdmin, {
+        firstName,
+        email,
+        url,
+        customerDescription,
+        overallScore,
+        elementScores: {
+          character: llmResult.elements.character.score,
+          problem: llmResult.elements.problem.score,
+          guide: llmResult.elements.guide.score,
+          plan: llmResult.elements.plan.score,
+          cta: llmResult.elements.cta.score,
+          stakes: llmResult.elements.stakes.score,
+          transformation: llmResult.elements.transformation.score,
+        },
+      })
+      .catch((err) => console.error("Admin email failed:", err)),
 
-  // 8. Also save to formSubmissions for the existing dashboard
-  convex
-    .mutation(api.formSubmissions.submitSignalScore, {
-      url,
-      customerDescription,
-      firstName,
-      email,
-      score: overallScore,
-      reportId: reportId as string,
-      anonymousId,
-    })
-    .catch((err) => console.error("Form submission failed:", err));
+    convex
+      .mutation(api.formSubmissions.submitSignalScore, {
+        url,
+        customerDescription,
+        firstName,
+        email,
+        score: overallScore,
+        reportId: reportId as string,
+        anonymousId,
+      })
+      .catch((err) => console.error("Form submission failed:", err)),
+  ]);
 
   const newUseCount = useCount + 1;
 
