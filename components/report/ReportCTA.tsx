@@ -14,7 +14,7 @@ export function ReportCTA({ reportId, phone }: ReportCTAProps) {
 
   return (
     <>
-      <div className="mt-12 text-center" data-reveal>
+      <div className="mt-12 text-center" data-reveal data-report-cta>
         <h2 className="mb-3 text-xl font-bold text-charcoal">
           Want someone to fix this for you?
         </h2>
