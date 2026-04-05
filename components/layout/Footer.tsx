@@ -93,8 +93,15 @@ export function Footer() {
               dreamfree.co.uk
             </a>
           </span>
-          <span>
-            &copy; {new Date().getFullYear()} Dreamfree. All rights reserved.
+          <span className="flex items-center gap-3">
+            <Link
+              href="/privacy"
+              className="transition-colors duration-300 ease-smooth hover:text-teal-bright"
+            >
+              Privacy Policy
+            </Link>
+            <span>&middot;</span>
+            &copy; {new Date().getFullYear()} Dreamfree
           </span>
         </div>
       </div>
