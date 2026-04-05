@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { currentUser } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
@@ -59,10 +59,19 @@ interface ReportElement {
 
 export default async function ReportPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ token?: string }>;
 }) {
   const { id } = await params;
+  const { token } = await searchParams;
+
+  // If a token is in the URL, redirect through the verify API route
+  // which sets the cookie and redirects back here without the token.
+  if (token) {
+    redirect(`/api/report/${id}/verify?token=${encodeURIComponent(token)}`);
+  }
 
   let data;
   try {
