@@ -59,8 +59,8 @@ export function Hero() {
           >
             {[
               "Get your Signal Score",
-              "See your new homepage",
-              "Go live & convert",
+              "Book a 15-min call",
+              "Get a free homepage redesign",
             ].map((step, i) => (
               <span key={i} className="flex items-center gap-2">
                 {i > 0 && (
