@@ -234,3 +234,29 @@ export const countByStatus = query({
     return counts;
   },
 });
+
+export const addShareToken = mutation({
+  args: {
+    reportId: v.id("signalReports"),
+    email: v.string(),
+    token: v.string(),
+    sharedBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const report = await ctx.db.get(args.reportId);
+    if (!report) throw new Error("Report not found");
+
+    const existing = report.shareTokens ?? [];
+    await ctx.db.patch(args.reportId, {
+      shareTokens: [
+        ...existing,
+        {
+          email: args.email,
+          token: args.token,
+          sharedBy: args.sharedBy,
+          createdAt: Date.now(),
+        },
+      ],
+    });
+  },
+});

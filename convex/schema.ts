@@ -128,6 +128,16 @@ export default defineSchema({
     verifyCode: v.string(),
     verifyToken: v.string(),
     clerkUserId: v.optional(v.string()),
+    shareTokens: v.optional(
+      v.array(
+        v.object({
+          email: v.string(),
+          token: v.string(),
+          sharedBy: v.string(),
+          createdAt: v.number(),
+        }),
+      ),
+    ),
     createdAt: v.number(),
   })
     .index("by_leadId", ["leadId"])

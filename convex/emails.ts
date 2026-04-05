@@ -229,3 +229,58 @@ export const sendCallbackNotification = action({
     }
   },
 });
+
+/** Email a shared Signal Score report link to a recipient. */
+export const sendShareEmail = action({
+  args: {
+    recipientEmail: v.string(),
+    sharerName: v.string(),
+    sharerMessage: v.optional(v.string()),
+    url: v.string(),
+    overallScore: v.number(),
+    reportId: v.string(),
+    verifyToken: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.error("RESEND_API_KEY not set — skipping share email");
+      return;
+    }
+
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://dreamfree.co.uk";
+    const magicLink = `${siteUrl}/report/${args.reportId}?token=${args.verifyToken}`;
+    const personalMessage = args.sharerMessage
+      ? `<p style="margin:16px 0;padding:16px;background:#f5f4f0;border-radius:12px;font-style:italic;color:#444;">&ldquo;${args.sharerMessage}&rdquo;</p>`
+      : "";
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Daniel at Dreamfree <daniel@dreamfree.co.uk>",
+        to: args.recipientEmail,
+        subject: `${args.sharerName} shared a Signal Score report with you (${args.overallScore}/100)`,
+        html: `
+          <h2>Someone shared a Signal Score report with you</h2>
+          <p><strong>${args.sharerName}</strong> thought you&rsquo;d find this useful &mdash; a website messaging audit for <strong>${args.url}</strong>, scored using The Signal Method.</p>
+          ${personalMessage}
+          <p>The site scored <strong>${args.overallScore} out of 100</strong> across seven key messaging elements.</p>
+          <p><a href="${magicLink}" style="display:inline-block;padding:14px 28px;background:#0d7377;color:#fff;text-decoration:none;border-radius:60px;font-weight:600;font-size:15px;">View the Full Report</a></p>
+          <hr style="border:none;border-top:1px solid #e2e1dc;margin:24px 0;" />
+          <p style="color:#7b7b96;font-size:13px;">The Signal Method measures how clearly a website communicates to its ideal customer. It&rsquo;s built by <a href="https://dreamfree.co.uk">Dreamfree</a> &mdash; a web agency that builds websites people actually respond to.</p>
+          <p style="color:#7b7b96;font-size:13px;">Want your own website scored? <a href="https://dreamfree.co.uk">Get a free Signal Score</a>.</p>
+        `,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("Resend API error (share email):", error);
+    }
+  },
+});
