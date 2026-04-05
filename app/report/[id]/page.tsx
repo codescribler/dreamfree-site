@@ -59,7 +59,6 @@ interface ReportElement {
 
 export default async function ReportPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
 }) {
