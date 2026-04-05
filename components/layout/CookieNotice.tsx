@@ -30,7 +30,7 @@ export function CookieNotice() {
                 <span className="mr-1.5 text-lg" role="img" aria-label="cookie">
                   🍪
                 </span>
-                To appease the compliance department, we have to tell you this
+                To appease the compliance gods, we have to tell you this
                 site uses cookies. They&rsquo;re mostly harmless — just helping
                 us remember you and keep things running smoothly.
               </p>
