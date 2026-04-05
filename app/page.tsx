@@ -271,17 +271,17 @@ export default function Home() {
             <PlanStep
               number={1}
               title="Get Your Free Signal Score"
-              description="We score your website against five conversion essentials and give you a number out of 100 — plus your single biggest quick win. Takes 60 seconds. No details needed."
+              description="We score your website against five conversion essentials and give you a number out of 100 — plus your single biggest quick win. Takes 60 seconds."
             />
             <PlanStep
               number={2}
-              title="Unlock the Full Signal Report"
-              description="Want the complete picture? For just £7 you get a detailed breakdown of all five elements, prioritised fixes, and a messaging blueprint you can act on immediately — or hand to any developer."
+              title="Book a 15-Minute Call"
+              description="We'll walk you through your report, explain what's costing you customers, and show you exactly what to fix — no obligation, no sales pitch."
             />
             <PlanStep
               number={3}
-              title="See Your New Homepage"
-              description="Love the strategy but want us to do the heavy lifting? We rebuild your homepage — designed, written, and live — before you've spent a penny on a full build. No obligation."
+              title="Get a Free Homepage Redesign"
+              description="Love what you hear? We'll redesign your homepage with new messaging built on The Signal Method — so you can see the difference before you commit to anything."
             />
           </div>
         </div>
