@@ -33,7 +33,6 @@ export function DemoRequestCTA({ reportId }: DemoRequestCTAProps) {
     return (
       <div
         className="mb-10 rounded-2xl border border-teal/20 bg-teal/5 p-8 text-center"
-        data-reveal
       >
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-teal/10">
           <svg
@@ -66,7 +65,6 @@ export function DemoRequestCTA({ reportId }: DemoRequestCTAProps) {
   return (
     <div
       className="mb-10 rounded-2xl border-2 border-teal/30 bg-gradient-to-b from-teal/5 to-white p-8 text-center"
-      data-reveal
     >
       <span className="mb-3 inline-block text-[0.75rem] font-semibold uppercase tracking-[0.12em] text-teal">
         Free &mdash; No Obligation
