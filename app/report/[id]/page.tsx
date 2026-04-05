@@ -172,26 +172,9 @@ export default async function ReportPage({
         </p>
       </div>
 
-      {/* Unlock prompt — shown when NOT verified */}
+      {/* Unlock prompt with verify functionality — shown when NOT verified */}
       {!showVerified && (
-        <div
-          className="mb-10 rounded-2xl border border-amber-300/40 bg-amber-50 p-6 text-center"
-          data-reveal
-        >
-          <p className="text-[1rem] font-semibold text-charcoal">
-            Your full report is ready to unlock
-          </p>
-          <p className="mt-2 text-[0.9rem] leading-relaxed text-slate">
-            We&rsquo;ve just sent you an email with a link to view your
-            complete element-by-element breakdown, personalised recommendations,
-            and action plan. Check your inbox and click the link to unlock
-            everything.
-          </p>
-          <p className="mt-3 text-[0.8rem] text-muted">
-            Can&rsquo;t find it? Check your spam folder, or enter your code
-            below.
-          </p>
-        </div>
+        <VerifyPrompt reportId={id} />
       )}
 
       {/* Element preview — PUBLIC (scores visible, details locked) */}
@@ -199,15 +182,18 @@ export default async function ReportPage({
         <ElementPreview
           elements={elementEntries.map(([key, el]) => [
             key,
-            { score: el.score, summary: el.summary },
+            {
+              score: el.score,
+              summary: el.summary,
+              recommendationCount: el.recommendations.length,
+              hasAnalysis: !!el.analysis,
+            },
           ])}
           names={ELEMENT_NAMES}
           url={report.url}
         />
       )}
 
-      {/* Verify prompt — shown when NOT verified */}
-      {!showVerified && <VerifyPrompt reportId={id} />}
 
       {/* ── VERIFIED CONTENT: NARRATIVE FLOW ── */}
       {showVerified && (

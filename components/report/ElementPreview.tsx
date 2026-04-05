@@ -1,14 +1,20 @@
 "use client";
 
 interface ElementPreviewProps {
-  elements: [string, { score: number; summary: string }][];
+  elements: [
+    string,
+    {
+      score: number;
+      summary: string;
+      recommendationCount: number;
+      hasAnalysis: boolean;
+    },
+  ][];
   names: Record<string, string>;
   url: string;
 }
 
-export function ElementPreview({ elements, names, url }: ElementPreviewProps) {
-  const displayUrl = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
-
+export function ElementPreview({ elements, names }: ElementPreviewProps) {
   return (
     <div className="my-10" data-reveal>
       <h2 className="mb-6 text-lg font-bold text-charcoal">
@@ -29,7 +35,7 @@ export function ElementPreview({ elements, names, url }: ElementPreviewProps) {
           return (
             <div
               key={key}
-              className="rounded-xl border border-border bg-white px-5 py-4"
+              className="overflow-hidden rounded-xl border border-border bg-white px-5 py-4"
             >
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-[0.9rem] font-semibold text-charcoal">
@@ -48,52 +54,78 @@ export function ElementPreview({ elements, names, url }: ElementPreviewProps) {
               <p className="text-[0.8rem] leading-[1.5] text-muted">
                 {el.summary}
               </p>
+
+              {/* Locked content hints */}
+              <div className="mt-3 border-t border-border/50 pt-3">
+                <div className="flex select-none flex-col gap-1.5">
+                  {/* Blurred analysis teaser */}
+                  <div className="relative overflow-hidden rounded-lg bg-warm-grey/50 px-3 py-2">
+                    <p className="text-[0.75rem] leading-relaxed text-slate blur-[4px]">
+                      This element needs attention because your messaging
+                      doesn&rsquo;t clearly communicate the value proposition
+                      to visitors within the first few seconds of landing.
+                    </p>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[0.7rem] font-semibold text-amber-700 shadow-sm">
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                        >
+                          <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        Full analysis locked
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Recommendation count hint */}
+                  {el.recommendationCount > 0 && (
+                    <div className="flex items-center gap-2 rounded-lg bg-teal/5 px-3 py-2">
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="shrink-0 text-teal"
+                      >
+                        <path d="M9 12l2 2 4-4" />
+                        <circle cx="12" cy="12" r="10" />
+                      </svg>
+                      <span className="text-[0.75rem] font-medium text-teal-deep">
+                        {el.recommendationCount} personalised{" "}
+                        {el.recommendationCount === 1
+                          ? "recommendation"
+                          : "recommendations"}{" "}
+                        waiting for you
+                      </span>
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        className="ml-auto shrink-0 text-amber-500"
+                      >
+                        <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           );
         })}
-      </div>
-
-      {/* Blurred overlay teaser */}
-      <div className="relative mt-4 overflow-hidden rounded-2xl">
-        <div className="select-none blur-[6px]">
-          <div className="space-y-3 p-4">
-            <div className="rounded-xl bg-warm-grey p-5">
-              <p className="text-sm text-slate">
-                Detailed analysis of each element with specific recommendations
-                tailored to your website content and messaging structure.
-              </p>
-            </div>
-            <div className="rounded-xl bg-teal-glow p-5">
-              <p className="text-sm text-slate">
-                Your personalised action plan with step-by-step fixes to improve
-                your messaging and convert more visitors into customers.
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/70">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            className="mb-3 text-teal"
-          >
-            <path
-              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
-          <p className="text-center text-sm font-semibold text-charcoal">
-            Unlock your 7 personalised recommendations
-          </p>
-          <p className="mt-1 text-center text-xs text-muted">
-            tailored specifically to{" "}
-            <span className="font-semibold text-teal">{displayUrl}</span>
-          </p>
-        </div>
       </div>
     </div>
   );
