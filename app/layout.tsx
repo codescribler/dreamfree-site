@@ -10,6 +10,7 @@ import { ConvexClientProvider } from "@/components/providers/ConvexClientProvide
 import { SITE } from "@/lib/constants";
 import { organizationSchema } from "@/lib/structured-data";
 import { Analytics } from "@vercel/analytics/next";
+import { CookieNotice } from "@/components/layout/CookieNotice";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -67,6 +68,7 @@ export default function RootLayout({
           </main>
           <Footer />
           <SignalFlow />
+          <CookieNotice />
           <Analytics />
         </ConvexClientProvider>
       </body>
