@@ -18,6 +18,8 @@ import { ActionPlanCard } from "@/components/report/ActionPlanCard";
 import { StrengthCard } from "@/components/report/StrengthCard";
 import { CreateAccountPrompt } from "@/components/report/CreateAccountPrompt";
 import { ReportCTA } from "@/components/report/ReportCTA";
+import { ShareForm } from "@/components/report/ShareForm";
+import { ReportActions } from "@/components/report/ReportActions";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
@@ -64,10 +66,10 @@ export default async function ReportPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string; share_token?: string }>;
 }) {
   const { id } = await params;
-  const { token } = await searchParams;
+  const { token, share_token } = await searchParams;
 
   let data;
   try {
@@ -92,7 +94,7 @@ export default async function ReportPage({
 
   if (isAdmin) {
     tier = "verified";
-  } else if (token && token === report.verifyToken) {
+  } else if ((token || share_token) && (token === report.verifyToken || share_token === report.verifyToken)) {
     // Magic link token — always grant access and set cookie
     await setVerificationCookie(id);
     if (report.accessLevel === "public") {
@@ -131,7 +133,7 @@ export default async function ReportPage({
     .sort(([, a], [, b]) => b.score - a.score);
 
   return (
-    <div className="mx-auto max-w-[800px] px-[clamp(1.25rem,4vw,3rem)] py-[clamp(3rem,6vw,5rem)]">
+    <div className="mx-auto max-w-[800px] px-[clamp(1.25rem,4vw,3rem)] py-[clamp(3rem,6vw,5rem)] pb-24">
       {/* Header */}
       <div className="mb-10 text-center" data-reveal>
         <span className="mb-3 inline-block text-[0.8rem] font-semibold uppercase tracking-[0.12em] text-teal">
@@ -292,6 +294,20 @@ export default async function ReportPage({
 
           {/* Primary + secondary CTA */}
           <ReportCTA reportId={id} phone={lead?.phone ?? ""} />
+
+          {/* Share form */}
+          <ShareForm
+            reportId={id}
+            sharerName={lead?.firstName ?? ""}
+            sharerEmail={lead?.email ?? ""}
+            score={report.overallScore}
+          />
+
+          {/* Sticky action bar */}
+          <ReportActions
+            reportUrl={`${process.env.NEXT_PUBLIC_SITE_URL || "https://dreamfree.co.uk"}/report/${id}`}
+            score={report.overallScore}
+          />
         </>
       )}
     </div>
