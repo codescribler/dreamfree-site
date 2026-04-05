@@ -50,7 +50,7 @@
   --animate-blob-fade-in: blob-fade-in 2s var(--ease-smooth) forwards;
   --animate-shimmer-sweep: shimmer-sweep 0.8s var(--ease-smooth) forwards;
   --animate-cta-bounce: cta-bounce 0.5s var(--ease-spring) 0.2s;
-  --animate-marquee: marquee 30s linear infinite;
+  --animate-marquee: marquee 18s linear infinite;
   --animate-nudge-pulse: nudge-pulse 1.6s var(--ease-out-custom) forwards;
   --animate-fade-in-up: fade-in-up 0.6s var(--ease-smooth) both;
   --animate-ring-expand: ring-expand 0.8s ease-out forwards;

@@ -45,6 +45,8 @@ export function TrustMarquee() {
       >
         {content}
         {content}
+        {content}
+        {content}
       </div>
     </div>
   );
