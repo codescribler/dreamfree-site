@@ -15,6 +15,7 @@ import { ActionPlanCard } from "@/components/report/ActionPlanCard";
 import { StrengthCard } from "@/components/report/StrengthCard";
 
 import { ReportCTA } from "@/components/report/ReportCTA";
+import { DemoRequestCTA } from "@/components/report/DemoRequestCTA";
 import { ShareForm } from "@/components/report/ShareForm";
 import { ReportActions } from "@/components/report/ReportActions";
 
@@ -268,6 +269,9 @@ export default async function ReportPage({
               </div>
             </div>
           )}
+
+          {/* Free homepage demo CTA */}
+          <DemoRequestCTA reportId={id} />
 
           {/* 3. What you're doing well */}
           {strongElements.length > 0 && (
