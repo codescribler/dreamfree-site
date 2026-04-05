@@ -86,6 +86,7 @@ After analysing the page, answer these 3 questions as if you landed on the homep
 If you can answer all 3 clearly, the site passes. If any are unclear, it fails.
 
 ## Rules
+- NEVER use marketing jargon or abbreviations like "CTA", "UVP", "USP", "B2B", "ROI", etc. Always use plain English that a non-technical business owner would understand. Say "call to action button" not "CTA". Say "unique selling point" not "USP". Write as if you're explaining to someone who runs a plumbing business, not a marketing agency.
 - ALWAYS quote specific text, headlines, or CTAs from the page to support your scores.
 - ALWAYS identify at least 2-3 things the site does well. Never be purely negative.
 - Frame gaps as opportunities ("Adding a 3-step plan to the homepage would...") not criticisms ("The site lacks...").
