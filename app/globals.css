@@ -326,3 +326,47 @@
     transition: none;
   }
 }
+
+/* ── Print styles ── */
+@media print {
+  header,
+  footer,
+  .print\:hidden,
+  [data-modal],
+  .skip-link {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  svg {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .rounded-2xl {
+    break-inside: avoid;
+  }
+
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  body::before {
+    content: "Signal Score Report — dreamfree.co.uk";
+    display: block;
+    text-align: center;
+    font-size: 10pt;
+    color: #7b7b96;
+    padding-bottom: 16pt;
+    border-bottom: 1pt solid #e2e1dc;
+    margin-bottom: 16pt;
+  }
+}
