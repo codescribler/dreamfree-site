@@ -9,8 +9,8 @@ import { SignalFlow } from "@/components/signal-flow/SignalFlow";
 import { ConvexClientProvider } from "@/components/providers/ConvexClientProvider";
 import { SITE } from "@/lib/constants";
 import { organizationSchema } from "@/lib/structured-data";
-import { Analytics } from "@vercel/analytics/next";
 import { CookieNotice } from "@/components/layout/CookieNotice";
+import { ConsentAnalytics } from "@/components/layout/ConsentAnalytics";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -46,9 +46,6 @@ export default function RootLayout({
       className={`${outfit.variable} ${playfair.variable} antialiased`}
     >
       <body className="flex min-h-dvh flex-col">
-        <Script id="ms-clarity" strategy="afterInteractive">
-          {`(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","${SITE.clarityId}");`}
-        </Script>
         <Script
           id="org-schema"
           type="application/ld+json"
@@ -69,7 +66,7 @@ export default function RootLayout({
           <Footer />
           <SignalFlow />
           <CookieNotice />
-          <Analytics />
+          <ConsentAnalytics />
         </ConvexClientProvider>
       </body>
     </html>
