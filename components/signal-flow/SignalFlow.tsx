@@ -7,7 +7,7 @@ import { api } from "@/convex/_generated/api";
 import { useAnonymousId } from "@/hooks/useAnonymousId";
 import { SITE } from "@/lib/constants";
 
-type Step = 1 | 2 | 3 | "analyse" | "limit" | "error";
+type Step = 1 | 2 | 3 | "analyse" | "limit" | "error" | "sent";
 
 const STORAGE_KEY = "df_signal_flow";
 
@@ -18,7 +18,7 @@ function loadDraft(): { url: string; customer: string; name: string; email: stri
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return empty;
     const parsed = JSON.parse(raw);
-    // Only restore numeric form steps — non-form steps (analyse/error/limit) reset to 1
+    // Only restore numeric form steps — non-form steps (analyse/error/limit/sent) reset to 1
     if (typeof parsed.step !== "number") parsed.step = 1;
     return parsed;
   } catch { /* ignore */ }
@@ -37,15 +37,62 @@ function clearDraft() {
   } catch { /* ignore */ }
 }
 
-const ANALYSIS_STATUSES = [
-  "Fetching your website...",
-  "Reading your messaging...",
-  "Checking hero identification...",
-  "Evaluating problem articulation...",
-  "Analysing trust signals...",
-  "Testing calls to action...",
-  "Running the Grunt Test...",
-  "Calculating your Signal Score...",
+const ANALYSIS_STEPS = [
+  {
+    status: "Fetching your website...",
+    insight:
+      "The Signal Method measures how clearly your website speaks to your ideal customer.",
+  },
+  {
+    status: "Reading your messaging...",
+    insight:
+      "Most visitors decide in under 5 seconds whether to stay or leave. That's the Grunt Test.",
+  },
+  {
+    status: "Checking hero identification...",
+    insight:
+      "Element 1: Character. Your visitor needs to see themselves as the hero of the story — not you.",
+  },
+  {
+    status: "Evaluating problem articulation...",
+    insight:
+      "Element 2: Problem. If you don't name the pain, visitors won't believe you can fix it.",
+  },
+  {
+    status: "Analysing trust signals...",
+    insight:
+      "Element 3: Guide. People don't buy from the cleverest — they buy from the one they trust.",
+  },
+  {
+    status: "Testing calls to action...",
+    insight:
+      "Element 4: Plan + CTA. Without a clear next step, visitors do nothing — even if they're interested.",
+  },
+  {
+    status: "Measuring stakes & transformation...",
+    insight:
+      "Elements 5–7: What happens if they don't act? What changes if they do? This is what drives enquiries.",
+  },
+  {
+    status: "Running the Grunt Test...",
+    insight:
+      "Could a caveman look at your site and grunt what you do, who it's for, and how to get it? That's the test.",
+  },
+  {
+    status: "Calculating your Signal Score...",
+    insight:
+      "Your score measures all seven elements out of 100. Most business websites score below 40.",
+  },
+  {
+    status: "Almost there...",
+    insight:
+      "We're being thorough — a proper analysis takes a moment. Your personalised report is nearly ready.",
+  },
+  {
+    status: "Still working on it...",
+    insight:
+      "Some websites have more content to analyse. Hang tight — quality takes a few extra seconds.",
+  },
 ];
 
 export function SignalFlow() {
@@ -57,8 +104,9 @@ export function SignalFlow() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [usesRemaining, setUsesRemaining] = useState(3);
-  const [analyseStatus, setAnalyseStatus] = useState(ANALYSIS_STATUSES[0]);
+  const [analyseIndex, setAnalyseIndex] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
+  const [timedOut, setTimedOut] = useState(false);
 
   const router = useRouter();
   const trackEvent = useMutation(api.events.track);
@@ -96,7 +144,8 @@ export function SignalFlow() {
 
   const startAnalysis = useCallback(async () => {
     setStep("analyse");
-    setAnalyseStatus(ANALYSIS_STATUSES[0]);
+    setAnalyseIndex(0);
+    setTimedOut(false);
 
     if (anonymousId) {
       trackEvent({
@@ -108,14 +157,19 @@ export function SignalFlow() {
       });
     }
 
-    // Cycle through status messages
+    // Cycle through educational status messages every 3s
     let i = 0;
     const statusInterval = setInterval(() => {
       i++;
-      if (i < ANALYSIS_STATUSES.length) {
-        setAnalyseStatus(ANALYSIS_STATUSES[i]);
+      if (i < ANALYSIS_STEPS.length) {
+        setAnalyseIndex(i);
       }
-    }, 1500);
+    }, 3000);
+
+    // Graceful timeout — after 45s show a helpful message instead of an error
+    const timeoutTimer = setTimeout(() => {
+      setTimedOut(true);
+    }, 45000);
 
     try {
       const response = await fetch("/api/signal-score", {
@@ -132,6 +186,7 @@ export function SignalFlow() {
       });
 
       clearInterval(statusInterval);
+      clearTimeout(timeoutTimer);
       const data = await response.json();
 
       if (data.error === "rate_limited") {
@@ -168,10 +223,9 @@ export function SignalFlow() {
       router.push(`/report/${data.reportId}`);
     } catch {
       clearInterval(statusInterval);
-      setErrorMessage(
-        "Something went wrong connecting to our servers. Please try again.",
-      );
-      setStep("error");
+      clearTimeout(timeoutTimer);
+      // Instead of a harsh error, show a friendly timeout/email message
+      setStep("sent");
     }
   }, [
     url,
@@ -504,9 +558,63 @@ export function SignalFlow() {
               Analysing{" "}
               <span className="text-teal-bright">{displayUrl}</span>
             </h2>
-            <p className="text-sm text-white/50 transition-opacity duration-200">
-              {analyseStatus}
+            <p className="mb-6 text-sm font-medium text-teal-bright transition-opacity duration-500">
+              {ANALYSIS_STEPS[analyseIndex]?.status}
             </p>
+            <div className="mx-auto max-w-sm rounded-xl border border-white/10 bg-white/5 px-6 py-5">
+              <p className="text-[0.85rem] leading-relaxed text-white/60 transition-opacity duration-500">
+                {ANALYSIS_STEPS[analyseIndex]?.insight}
+              </p>
+            </div>
+            {timedOut && (
+              <p className="mt-6 text-sm leading-relaxed text-white/50">
+                This is taking longer than usual — some sites need extra
+                analysis time. Don&rsquo;t worry, we&rsquo;ll email your
+                results to <strong className="text-white/70">{email}</strong>{" "}
+                if it takes much longer.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Sent — shown when request timed out but email was sent */}
+        {step === "sent" && (
+          <div className="text-center">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-teal/10">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                className="text-teal"
+              >
+                <path
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <h2 className="mb-3 text-2xl font-bold text-white">
+              Your report is on its way
+            </h2>
+            <p className="mb-2 text-sm leading-relaxed text-white/50">
+              The analysis took a little longer than expected — but don&rsquo;t
+              worry, it&rsquo;s still running.
+            </p>
+            <p className="mb-8 text-sm leading-relaxed text-white/50">
+              We&rsquo;ll email your full Signal Score report to{" "}
+              <strong className="text-white/70">{email}</strong> as soon as
+              it&rsquo;s ready. Check your inbox (and spam folder) shortly.
+            </p>
+            <button
+              onClick={close}
+              className="inline-flex items-center gap-2 rounded-[60px] bg-teal px-8 py-3 text-sm font-semibold text-white transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(13,115,119,0.3)]"
+            >
+              Got it
+            </button>
           </div>
         )}
 

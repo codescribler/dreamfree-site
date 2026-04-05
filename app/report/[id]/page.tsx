@@ -92,23 +92,19 @@ export default async function ReportPage({
 
   if (isAdmin) {
     tier = "verified";
-  } else if (report.accessLevel === "verified") {
+  } else if (token && token === report.verifyToken) {
+    // Magic link token — always grant access and set cookie
+    await setVerificationCookie(id);
+    if (report.accessLevel === "public") {
+      await convex.mutation(api.signalReports.markVerified, {
+        reportId: id as Id<"signalReports">,
+      });
+    }
+    tier = "verified";
+  } else {
     const hasCookie = await hasVerificationCookie(id);
     const isClerkOwner = report.clerkUserId && user?.id === report.clerkUserId;
     tier = hasCookie || isClerkOwner ? "verified" : "public";
-  } else {
-    if (token && token === report.verifyToken) {
-      await setVerificationCookie(id);
-      if (report.accessLevel === "public") {
-        await convex.mutation(api.signalReports.markVerified, {
-          reportId: id as Id<"signalReports">,
-        });
-      }
-      tier = "verified";
-    } else {
-      const hasCookie = await hasVerificationCookie(id);
-      tier = hasCookie ? "verified" : "public";
-    }
   }
 
   const showVerified = tier === "verified";
