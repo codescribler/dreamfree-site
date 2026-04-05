@@ -88,7 +88,12 @@ export default async function ReportPage({
 
   // Determine access tier
   let tier: AccessTier = "public";
-  const user = await currentUser();
+  let user;
+  try {
+    user = await currentUser();
+  } catch {
+    user = null;
+  }
   const userEmail = user?.emailAddresses[0]?.emailAddress?.toLowerCase();
   const isAdmin = userEmail === ADMIN_EMAIL;
 
@@ -97,10 +102,14 @@ export default async function ReportPage({
   } else if ((token || share_token) && (token === report.verifyToken || share_token === report.verifyToken)) {
     // Magic link token — always grant access and set cookie
     await setVerificationCookie(id);
-    if (report.accessLevel === "public") {
-      await convex.mutation(api.signalReports.markVerified, {
-        reportId: id as Id<"signalReports">,
-      });
+    try {
+      if (report.accessLevel === "public") {
+        await convex.mutation(api.signalReports.markVerified, {
+          reportId: id as Id<"signalReports">,
+        });
+      }
+    } catch {
+      // Non-critical — cookie is set, page will still render as verified
     }
     tier = "verified";
   } else {
