@@ -172,6 +172,28 @@ export default async function ReportPage({
         </p>
       </div>
 
+      {/* Unlock prompt — shown when NOT verified */}
+      {!showVerified && (
+        <div
+          className="mb-10 rounded-2xl border border-teal/20 bg-teal/5 p-6 text-center"
+          data-reveal
+        >
+          <p className="text-[1rem] font-semibold text-charcoal">
+            Your full report is ready to unlock
+          </p>
+          <p className="mt-2 text-[0.9rem] leading-relaxed text-slate">
+            We&rsquo;ve just sent you an email with a link to view your
+            complete element-by-element breakdown, personalised recommendations,
+            and action plan. Check your inbox and click the link to unlock
+            everything.
+          </p>
+          <p className="mt-3 text-[0.8rem] text-muted">
+            Can&rsquo;t find it? Check your spam folder, or enter your code
+            below.
+          </p>
+        </div>
+      )}
+
       {/* Element preview — PUBLIC (scores visible, details locked) */}
       {!showVerified && (
         <ElementPreview
