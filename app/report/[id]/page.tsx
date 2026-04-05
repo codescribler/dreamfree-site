@@ -4,10 +4,7 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { buildMetadata } from "@/lib/metadata";
-import {
-  hasVerificationCookie,
-  setVerificationCookie,
-} from "@/lib/report-cookie";
+import { hasVerificationCookie } from "@/lib/report-cookie";
 import { ScoreRing } from "@/components/report/ScoreRing";
 import { ScoreContext } from "@/components/report/ScoreContext";
 import { GruntTestBadge } from "@/components/report/GruntTestBadge";
@@ -65,10 +62,8 @@ export default async function ReportPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ token?: string; share_token?: string }>;
 }) {
   const { id } = await params;
-  const { token, share_token } = await searchParams;
 
   let data;
   try {
@@ -85,23 +80,15 @@ export default async function ReportPage({
 
   const { report, lead } = data;
 
-  // Determine access tier — check token and cookie first (no Clerk needed).
-  // Only call Clerk as a last resort for admin access.
+  // Determine access tier.
+  // Token verification happens via /api/report/[id]/verify?token=... which sets a cookie
+  // and redirects here. By the time we reach this page, we only need to check the cookie.
   let tier: AccessTier = "public";
 
-  if ((token || share_token) && (token === report.verifyToken || share_token === report.verifyToken)) {
-    // Magic link token — grant access and set cookie
-    await setVerificationCookie(id);
-    if (report.accessLevel === "public") {
-      await convex.mutation(api.signalReports.markVerified, {
-        reportId: id as Id<"signalReports">,
-      });
-    }
-    tier = "verified";
-  } else if (await hasVerificationCookie(id)) {
+  if (await hasVerificationCookie(id)) {
     tier = "verified";
   } else {
-    // No token or cookie — check if this is an admin (Clerk)
+    // No cookie — check if this is an admin (Clerk)
     try {
       const user = await currentUser();
       const userEmail = user?.emailAddresses[0]?.emailAddress?.toLowerCase();

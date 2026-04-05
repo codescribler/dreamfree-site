@@ -71,7 +71,7 @@ export const sendSignalScoreToVisitor = action({
 
     const siteUrl =
       process.env.NEXT_PUBLIC_SITE_URL || "https://dreamfree.co.uk";
-    const magicLink = `${siteUrl}/report/${args.reportId}?token=${args.verifyToken}`;
+    const magicLink = `${siteUrl}/api/report/${args.reportId}/verify?token=${args.verifyToken}`;
     const gruntResult = args.gruntTestPass
       ? "Your site <strong>passed</strong> the Grunt Test."
       : "Your site <strong>did not pass</strong> the Grunt Test — most visitors can't tell what you do within 5 seconds.";
@@ -250,7 +250,7 @@ export const sendShareEmail = action({
 
     const siteUrl =
       process.env.NEXT_PUBLIC_SITE_URL || "https://dreamfree.co.uk";
-    const magicLink = `${siteUrl}/report/${args.reportId}?token=${args.verifyToken}`;
+    const magicLink = `${siteUrl}/api/report/${args.reportId}/verify?token=${args.verifyToken}`;
     const personalMessage = args.sharerMessage
       ? `<p style="margin:16px 0;padding:16px;background:#f5f4f0;border-radius:12px;font-style:italic;color:#444;">&ldquo;${args.sharerMessage}&rdquo;</p>`
       : "";

@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { createHmac } from "crypto";
+import type { NextResponse } from "next/server";
 
 const SECRET = process.env.REPORT_SIGNING_SECRET || "dev-secret-change-me";
 
@@ -29,15 +30,28 @@ function verify(token: string, reportId: string): boolean {
 
 const COOKIE_PREFIX = "df_report_";
 
-export async function setVerificationCookie(reportId: string): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.set(`${COOKIE_PREFIX}${reportId}`, sign(reportId), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: `/report/${reportId}`,
-    maxAge: 60 * 60 * 24 * 365, // 1 year
-  });
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax" as const,
+  maxAge: 60 * 60 * 24 * 365, // 1 year
+};
+
+/** Set cookie via cookies() — only works in Server Actions / Route Handlers (POST) */
+export async function setVerificationCookie(reportId: string): Promise<void>;
+/** Set cookie on a NextResponse — works in any Route Handler */
+export async function setVerificationCookie(reportId: string, response: NextResponse): Promise<void>;
+export async function setVerificationCookie(reportId: string, response?: NextResponse): Promise<void> {
+  const name = `${COOKIE_PREFIX}${reportId}`;
+  const value = sign(reportId);
+  const opts = { ...COOKIE_OPTIONS, path: `/report/${reportId}` };
+
+  if (response) {
+    response.cookies.set(name, value, opts);
+  } else {
+    const cookieStore = await cookies();
+    cookieStore.set(name, value, opts);
+  }
 }
 
 export async function hasVerificationCookie(
