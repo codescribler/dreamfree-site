@@ -23,7 +23,6 @@ import { ReportActions } from "@/components/report/ReportActions";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
-const ADMIN_EMAIL = "daniel@dreamfree.co.uk";
 
 const ELEMENT_NAMES: Record<string, string> = {
   character: "Character (The Hero)",
@@ -86,40 +85,36 @@ export default async function ReportPage({
 
   const { report, lead } = data;
 
-  // Determine access tier
+  // Determine access tier — check token and cookie first (no Clerk needed).
+  // Only call Clerk as a last resort for admin access.
   let tier: AccessTier = "public";
-  let user;
-  try {
-    user = await currentUser();
-  } catch {
-    user = null;
-  }
-  const userEmail = user?.emailAddresses[0]?.emailAddress?.toLowerCase();
-  const isAdmin = userEmail === ADMIN_EMAIL;
 
-  if (isAdmin) {
-    tier = "verified";
-  } else if ((token || share_token) && (token === report.verifyToken || share_token === report.verifyToken)) {
-    // Magic link token — always grant access and set cookie
+  if ((token || share_token) && (token === report.verifyToken || share_token === report.verifyToken)) {
+    // Magic link token — grant access and set cookie
     await setVerificationCookie(id);
-    try {
-      if (report.accessLevel === "public") {
-        await convex.mutation(api.signalReports.markVerified, {
-          reportId: id as Id<"signalReports">,
-        });
-      }
-    } catch {
-      // Non-critical — cookie is set, page will still render as verified
+    if (report.accessLevel === "public") {
+      await convex.mutation(api.signalReports.markVerified, {
+        reportId: id as Id<"signalReports">,
+      });
     }
     tier = "verified";
+  } else if (await hasVerificationCookie(id)) {
+    tier = "verified";
   } else {
-    const hasCookie = await hasVerificationCookie(id);
-    const isClerkOwner = report.clerkUserId && user?.id === report.clerkUserId;
-    tier = hasCookie || isClerkOwner ? "verified" : "public";
+    // No token or cookie — check if this is an admin (Clerk)
+    try {
+      const user = await currentUser();
+      const userEmail = user?.emailAddresses[0]?.emailAddress?.toLowerCase();
+      if (userEmail === "daniel@dreamfree.co.uk") {
+        tier = "verified";
+      }
+    } catch {
+      // Clerk unavailable — stay public
+    }
   }
 
   const showVerified = tier === "verified";
-  const showCreateAccount = showVerified && !report.clerkUserId && !isAdmin;
+  const showCreateAccount = showVerified && !report.clerkUserId;
 
   const reportDate = new Date(report.createdAt).toLocaleDateString("en-GB", {
     day: "numeric",
