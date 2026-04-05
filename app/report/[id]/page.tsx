@@ -175,7 +175,7 @@ export default async function ReportPage({
       {/* Unlock prompt — shown when NOT verified */}
       {!showVerified && (
         <div
-          className="mb-10 rounded-2xl border border-teal/20 bg-teal/5 p-6 text-center"
+          className="mb-10 rounded-2xl border border-amber-300/40 bg-amber-50 p-6 text-center"
           data-reveal
         >
           <p className="text-[1rem] font-semibold text-charcoal">
