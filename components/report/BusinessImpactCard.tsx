@@ -22,7 +22,7 @@ export function BusinessImpactCard({
   return (
     <div className="rounded-2xl border border-border bg-white p-6">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-[0.95rem] font-bold text-charcoal">{name}</h3>
+        <h3 className="text-base font-bold text-charcoal">{name}</h3>
         <span className="text-sm font-bold text-charcoal">{score}/10</span>
       </div>
 
@@ -33,11 +33,11 @@ export function BusinessImpactCard({
         />
       </div>
 
-      <p className="mb-4 text-[0.85rem] font-medium leading-[1.6] text-red-600/80">
+      <p className="mb-4 text-[0.95rem] font-medium leading-[1.6] text-red-600/80">
         {businessImpact}
       </p>
 
-      <div className="space-y-2 text-[0.85rem] leading-[1.7] text-slate">
+      <div className="space-y-2 text-[0.95rem] leading-[1.7] text-slate">
         {analysis.split("\n\n").map((para, i) => (
           <p key={i}>{para}</p>
         ))}

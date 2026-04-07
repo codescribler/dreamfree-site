@@ -26,10 +26,10 @@ export function GruntTestBadge({ pass, explanation }: GruntTestBadgeProps) {
           The Grunt Test
         </span>
       </div>
-      <p className="text-[0.85rem] leading-[1.6] text-slate">
+      <p className="text-[0.95rem] leading-[1.6] text-slate">
         {explanation}
       </p>
-      <p className="mt-2 text-[0.8rem] italic text-muted">
+      <p className="mt-2 text-[0.875rem] italic text-muted">
         Can a visitor answer these 3 questions within 5 seconds: What do you
         offer? How will it make my life better? What do I need to do to buy it?
       </p>

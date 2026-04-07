@@ -15,8 +15,8 @@ export function ScoreContext({ score }: ScoreContextProps) {
 
   return (
     <div className="mt-4 text-center">
-      <p className="text-[0.85rem] leading-[1.6] text-slate">{message}</p>
-      <p className="mt-2 text-[0.8rem] text-muted">
+      <p className="text-[0.95rem] leading-[1.6] text-slate">{message}</p>
+      <p className="mt-2 text-[0.875rem] text-muted">
         Your Signal Score predicts how effectively your website turns visitors
         into customers. The higher your score, the more leads your site
         generates.

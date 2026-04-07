@@ -11,7 +11,7 @@ export function StrengthCard({ name, score, summary }: StrengthCardProps) {
   return (
     <div className="rounded-2xl border border-teal/15 bg-teal-glow/50 p-5">
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-[0.9rem] font-semibold text-charcoal">{name}</h3>
+        <h3 className="text-[0.95rem] font-semibold text-charcoal">{name}</h3>
         <span className="text-sm font-bold text-teal-deep">{score}/10</span>
       </div>
       <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-white/50">
@@ -20,7 +20,7 @@ export function StrengthCard({ name, score, summary }: StrengthCardProps) {
           style={{ width: `${barWidth}%` }}
         />
       </div>
-      <p className="text-[0.85rem] leading-[1.6] text-slate">{summary}</p>
+      <p className="text-[0.95rem] leading-[1.6] text-slate">{summary}</p>
     </div>
   );
 }

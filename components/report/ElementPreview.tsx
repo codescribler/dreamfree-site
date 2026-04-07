@@ -38,7 +38,7 @@ export function ElementPreview({ elements, names }: ElementPreviewProps) {
               className="overflow-hidden rounded-xl border border-border bg-white px-5 py-4"
             >
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-[0.9rem] font-semibold text-charcoal">
+                <span className="text-[0.95rem] font-semibold text-charcoal">
                   {names[key] || key}
                 </span>
                 <span className="text-sm font-bold text-charcoal">
@@ -51,7 +51,7 @@ export function ElementPreview({ elements, names }: ElementPreviewProps) {
                   style={{ width: `${barWidth}%` }}
                 />
               </div>
-              <p className="text-[0.8rem] leading-[1.5] text-muted">
+              <p className="text-[0.875rem] leading-[1.5] text-muted">
                 {el.summary}
               </p>
 
