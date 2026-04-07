@@ -9,6 +9,7 @@ import { SignalFlow } from "@/components/signal-flow/SignalFlow";
 import { ConvexClientProvider } from "@/components/providers/ConvexClientProvider";
 import { SITE } from "@/lib/constants";
 import { organizationSchema } from "@/lib/structured-data";
+import { PublicShell } from "@/components/layout/PublicShell";
 import { CookieNotice } from "@/components/layout/CookieNotice";
 import { ConsentAnalytics } from "@/components/layout/ConsentAnalytics";
 import "./globals.css";
@@ -57,16 +58,20 @@ export default function RootLayout({
           Skip to main content
         </a>
         <ConvexClientProvider>
-          <GrainOverlay />
-          <Interactions />
-          <Header />
+          <PublicShell>
+            <GrainOverlay />
+            <Interactions />
+            <Header />
+          </PublicShell>
           <main id="main-content" className="flex-1">
             {children}
           </main>
-          <Footer />
-          <SignalFlow />
-          <CookieNotice />
-          <ConsentAnalytics />
+          <PublicShell>
+            <Footer />
+            <SignalFlow />
+            <CookieNotice />
+            <ConsentAnalytics />
+          </PublicShell>
         </ConvexClientProvider>
       </body>
     </html>
