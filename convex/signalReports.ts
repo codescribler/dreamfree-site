@@ -200,6 +200,22 @@ export const getByIdWithLead = query({
   },
 });
 
+/** List reports for a specific lead. */
+export const listByLead = query({
+  args: {
+    leadId: v.id("leads"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 20;
+    return await ctx.db
+      .query("signalReports")
+      .withIndex("by_leadId", (q) => q.eq("leadId", args.leadId))
+      .order("desc")
+      .take(limit);
+  },
+});
+
 /** List reports for dashboard. */
 export const list = query({
   args: { limit: v.optional(v.number()) },

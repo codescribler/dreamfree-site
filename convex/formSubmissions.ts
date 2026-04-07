@@ -166,6 +166,22 @@ export const submitSignalScore = mutation({
   },
 });
 
+/** List form submissions for a specific lead. */
+export const listByLead = query({
+  args: {
+    leadId: v.id("leads"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 50;
+    return await ctx.db
+      .query("formSubmissions")
+      .withIndex("by_leadId", (q) => q.eq("leadId", args.leadId))
+      .order("desc")
+      .take(limit);
+  },
+});
+
 /** List form submissions for dashboard. */
 export const list = query({
   args: {

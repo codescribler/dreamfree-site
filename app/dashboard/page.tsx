@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
+import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 
@@ -108,9 +109,12 @@ export default function DashboardPage() {
                       className="border-b border-border last:border-b-0 hover:bg-warm-grey/30"
                     >
                       <td className="px-4 py-3">
-                        <div className="font-medium text-charcoal">
+                        <Link
+                          href={`/dashboard/leads/${lead._id}`}
+                          className="font-medium text-charcoal hover:text-teal hover:underline"
+                        >
                           {lead.firstName || lead.name || "—"}
-                        </div>
+                        </Link>
                         <div className="text-xs text-muted">{lead.email}</div>
                       </td>
                       <td className="px-4 py-3">
