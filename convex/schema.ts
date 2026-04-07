@@ -4,6 +4,13 @@ import { v } from "convex/values";
 export default defineSchema({
   // ── CORE TABLES (active now) ──
 
+  users: defineTable({
+    email: v.string(),
+    passwordHash: v.string(),
+    isAdmin: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_email", ["email"]),
+
   leads: defineTable({
     email: v.string(),
     firstName: v.optional(v.string()),
@@ -127,7 +134,7 @@ export default defineSchema({
     accessLevel: v.union(v.literal("public"), v.literal("verified")),
     verifyCode: v.string(),
     verifyToken: v.string(),
-    clerkUserId: v.optional(v.string()),
+    userId: v.optional(v.string()),
     shareTokens: v.optional(
       v.array(
         v.object({

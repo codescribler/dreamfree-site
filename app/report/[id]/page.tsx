@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
-import { currentUser } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
+import { verifySession } from "@/lib/session";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { buildMetadata } from "@/lib/metadata";
@@ -97,15 +97,10 @@ export default async function ReportPage({
   if (await hasVerificationCookie(id)) {
     tier = "verified";
   } else {
-    // No cookie — check if this is an admin (Clerk)
-    try {
-      const user = await currentUser();
-      const userEmail = user?.emailAddresses[0]?.emailAddress?.toLowerCase();
-      if (userEmail === "daniel@dreamfree.co.uk") {
-        tier = "verified";
-      }
-    } catch {
-      // Clerk unavailable — stay public
+    // No cookie — check if this is an admin
+    const session = await verifySession();
+    if (session?.isAdmin) {
+      tier = "verified";
     }
   }
 

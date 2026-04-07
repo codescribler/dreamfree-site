@@ -178,14 +178,14 @@ export const updateVerifyCredentials = mutation({
   },
 });
 
-/** Link a Clerk user ID to a report after account creation. */
-export const linkClerkUser = mutation({
+/** Link a user ID to a report after account creation. */
+export const linkUser = mutation({
   args: {
     reportId: v.id("signalReports"),
-    clerkUserId: v.string(),
+    userId: v.string(),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.reportId, { clerkUserId: args.clerkUserId });
+    await ctx.db.patch(args.reportId, { userId: args.userId });
   },
 });
 

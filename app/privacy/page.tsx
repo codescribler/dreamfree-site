@@ -104,8 +104,8 @@ export default function PrivacyPage() {
               emails and notifications)
             </li>
             <li>
-              <strong>Clerk</strong> &mdash; authentication (if you create an
-              account)
+              <strong>Custom authentication</strong> &mdash; email and password
+              login for admin access (session stored in a secure cookie)
             </li>
             <li>
               <strong>Vercel</strong> &mdash; website hosting and analytics
@@ -171,8 +171,8 @@ export default function PrivacyPage() {
               specific Signal Score report (1 year)
             </li>
             <li>
-              <strong>Clerk session cookies</strong> &mdash; manage your login
-              session if you create an account
+              <strong>df_session</strong> &mdash; manages your admin login
+              session (7 days)
             </li>
           </ul>
           <p className="mt-2">

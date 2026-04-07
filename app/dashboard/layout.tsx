@@ -1,5 +1,5 @@
-import { Show, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 
 export default function DashboardLayout({
   children,
@@ -18,9 +18,7 @@ export default function DashboardLayout({
               Dashboard
             </span>
           </div>
-          <Show when="signed-in">
-            <UserButton />
-          </Show>
+          <LogoutButton />
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clerkClient } from "@clerk/nextjs/server";
+import bcrypt from "bcryptjs";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -21,7 +21,6 @@ export async function POST(
     );
   }
 
-  // Get the report and lead to find the email
   let data;
   try {
     data = await convex.query(api.signalReports.getByIdWithLead, {
@@ -35,28 +34,29 @@ export async function POST(
     return NextResponse.json({ error: "not_allowed" }, { status: 403 });
   }
 
-  if (data.report.clerkUserId) {
+  if (data.report.userId) {
     return NextResponse.json({ error: "account_exists" }, { status: 400 });
   }
 
   try {
-    const clerk = await clerkClient();
-    const user = await clerk.users.createUser({
-      emailAddress: [data.lead.email],
-      password,
-      firstName: data.lead.firstName || undefined,
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const userId = await convex.mutation(api.users.createUser, {
+      email: data.lead.email,
+      passwordHash,
+      isAdmin: false,
     });
 
-    await convex.mutation(api.signalReports.linkClerkUser, {
+    await convex.mutation(api.signalReports.linkUser, {
       reportId: id as Id<"signalReports">,
-      clerkUserId: user.id,
+      userId: userId as string,
     });
 
-    return NextResponse.json({ success: true, userId: user.id });
+    return NextResponse.json({ success: true, userId });
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Failed to create account.";
-    console.error("Clerk account creation failed:", message);
+    console.error("Account creation failed:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

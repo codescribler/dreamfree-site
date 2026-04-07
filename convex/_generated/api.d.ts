@@ -14,6 +14,7 @@ import type * as events from "../events.js";
 import type * as formSubmissions from "../formSubmissions.js";
 import type * as leads from "../leads.js";
 import type * as signalReports from "../signalReports.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -28,6 +29,7 @@ declare const fullApi: ApiFromModules<{
   formSubmissions: typeof formSubmissions;
   leads: typeof leads;
   signalReports: typeof signalReports;
+  users: typeof users;
 }>;
 
 /**
