@@ -230,6 +230,150 @@ export const sendCallbackNotification = action({
   },
 });
 
+/** Notify Daniel when someone generates a content plan. */
+export const sendContentPlanNotification = internalAction({
+  args: {
+    name: v.string(),
+    email: v.string(),
+    businessDescription: v.string(),
+    goal: v.string(),
+    channelsTried: v.array(v.string()),
+    frustration: v.string(),
+    timePerWeek: v.string(),
+    website: v.optional(v.string()),
+    planId: v.string(),
+    ideaTitles: v.array(v.string()),
+  },
+  handler: async (_ctx, args) => {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.error("RESEND_API_KEY not set — skipping content plan notification");
+      return;
+    }
+
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://dreamfree.co.uk";
+    const planLink = `${siteUrl}/content-plan/${args.planId}`;
+    const websiteLine = args.website
+      ? `<tr><td style="padding:6px 12px 6px 0;color:#888;">Website</td><td style="padding:6px 0;"><a href="${args.website}">${args.website}</a></td></tr>`
+      : "";
+    const channels = args.channelsTried.length > 0
+      ? args.channelsTried.join(", ")
+      : "Nothing yet";
+    const ideasHtml = args.ideaTitles
+      .map((t, i) => `<li style="margin-bottom:4px;">${i + 1}. ${t}</li>`)
+      .join("");
+
+    const hotLead = args.timePerWeek.toLowerCase().includes("outsource");
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Dreamfree <notifications@dreamfree.co.uk>",
+        to: "daniel@dreamfree.co.uk",
+        reply_to: args.email,
+        subject: `${hotLead ? "🔥 HOT LEAD — " : ""}New Content Plan: ${args.name} (${args.goal})`,
+        html: `
+          <div style="font-family:-apple-system,sans-serif;max-width:600px;">
+            <h2 style="margin:0 0 16px;">New Content Plan Generated</h2>
+            ${hotLead ? '<div style="background:#fff3cd;border-left:3px solid #e6a817;padding:10px 14px;margin-bottom:16px;font-size:14px;font-weight:600;">This lead said they\'d rather outsource content — follow up quickly.</div>' : ""}
+            <table style="border-collapse:collapse;width:100%;font-size:14px;">
+              <tr><td style="padding:6px 12px 6px 0;color:#888;">Name</td><td style="padding:6px 0;font-weight:600;">${args.name}</td></tr>
+              <tr><td style="padding:6px 12px 6px 0;color:#888;">Email</td><td style="padding:6px 0;">${args.email}</td></tr>
+              ${websiteLine}
+              <tr><td style="padding:6px 12px 6px 0;color:#888;">Goal</td><td style="padding:6px 0;">${args.goal}</td></tr>
+              <tr><td style="padding:6px 12px 6px 0;color:#888;">Time budget</td><td style="padding:6px 0;">${args.timePerWeek}</td></tr>
+              <tr><td style="padding:6px 12px 6px 0;color:#888;">Channels tried</td><td style="padding:6px 0;">${channels}</td></tr>
+            </table>
+            <div style="margin:16px 0;padding:14px;background:#f5f4f0;border-radius:10px;">
+              <p style="margin:0 0 4px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">About their business</p>
+              <p style="margin:0;font-size:14px;">${args.businessDescription}</p>
+            </div>
+            <div style="margin:16px 0;padding:14px;background:#fff0f0;border-radius:10px;">
+              <p style="margin:0 0 4px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">Their biggest frustration</p>
+              <p style="margin:0;font-size:14px;">${args.frustration}</p>
+            </div>
+            <div style="margin:16px 0;">
+              <p style="margin:0 0 8px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">Ideas generated</p>
+              <ol style="margin:0;padding-left:0;list-style:none;font-size:14px;">${ideasHtml}</ol>
+            </div>
+            <p><a href="${planLink}" style="display:inline-block;padding:12px 24px;background:#0d7377;color:#fff;text-decoration:none;border-radius:60px;font-weight:600;font-size:14px;">View Their Plan</a></p>
+          </div>
+        `,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("Resend API error (content plan notification):", error);
+    }
+  },
+});
+
+/** Email the visitor a link to their content plan. */
+export const sendContentPlanToVisitor = internalAction({
+  args: {
+    name: v.string(),
+    email: v.string(),
+    planId: v.string(),
+    ideaTitles: v.array(v.string()),
+    summary: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.error("RESEND_API_KEY not set — skipping visitor content plan email");
+      return;
+    }
+
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://dreamfree.co.uk";
+    const planLink = `${siteUrl}/content-plan/${args.planId}`;
+    const firstName = args.name.split(" ")[0];
+    const ideasHtml = args.ideaTitles
+      .map((t, i) => `<li style="margin-bottom:6px;font-size:14px;color:#1a1a2e;">${i + 1}. ${t}</li>`)
+      .join("");
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Daniel at Dreamfree <daniel@dreamfree.co.uk>",
+        to: args.email,
+        subject: `${firstName}, your 90-day content plan is ready`,
+        html: `
+          <div style="font-family:-apple-system,sans-serif;max-width:600px;">
+            <h2 style="margin:0 0 12px;color:#1a1a2e;">Your Content Plan is Ready</h2>
+            <p style="font-size:15px;color:#4a4a68;line-height:1.7;">Hi ${firstName},</p>
+            <p style="font-size:15px;color:#4a4a68;line-height:1.7;">${args.summary}</p>
+            <p style="font-size:15px;color:#4a4a68;line-height:1.7;">Here&rsquo;s a preview of your 6 content ideas:</p>
+            <ol style="margin:16px 0;padding-left:20px;">${ideasHtml}</ol>
+            <p style="margin:24px 0;">
+              <a href="${planLink}" style="display:inline-block;padding:14px 28px;background:#0d7377;color:#fff;text-decoration:none;border-radius:60px;font-weight:600;font-size:15px;">View Your Full Plan</a>
+            </p>
+            <p style="font-size:15px;color:#4a4a68;line-height:1.7;">Each idea includes a detailed brief, target keyword, and time estimate &mdash; everything you need to get started or hand to a writer.</p>
+            <p style="font-size:15px;color:#4a4a68;line-height:1.7;">Want help executing the plan? Just reply to this email &mdash; it comes straight to me.</p>
+            <hr style="border:none;border-top:1px solid #e2e1dc;margin:24px 0;" />
+            <p style="color:#7b7b96;font-size:13px;">&mdash; Daniel Whittaker, <a href="https://dreamfree.co.uk" style="color:#0d7377;">Dreamfree</a></p>
+          </div>
+        `,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("Resend API error (visitor content plan email):", error);
+    }
+  },
+});
+
 /** Email a shared Signal Score report link to a recipient. */
 export const sendShareEmail = action({
   args: {

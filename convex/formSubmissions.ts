@@ -166,6 +166,54 @@ export const submitSignalScore = mutation({
   },
 });
 
+export const submitContentIdeas = mutation({
+  args: {
+    name: v.string(),
+    email: v.string(),
+    businessDescription: v.string(),
+    goal: v.string(),
+    channelsTried: v.array(v.string()),
+    frustration: v.string(),
+    timePerWeek: v.string(),
+    website: v.optional(v.string()),
+    anonymousId: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{ success: boolean; leadId: Id<"leads"> }> => {
+    const leadId: Id<"leads"> = await ctx.runMutation(internal.leads.upsertLead, {
+      email: args.email,
+      name: args.name,
+      website: args.website,
+      source: "content_idea_generator",
+      anonymousId: args.anonymousId,
+    });
+
+    await ctx.db.insert("formSubmissions", {
+      leadId,
+      type: "content_idea_generator",
+      data: {
+        name: args.name,
+        email: args.email,
+        businessDescription: args.businessDescription,
+        goal: args.goal,
+        channelsTried: args.channelsTried,
+        frustration: args.frustration,
+        timePerWeek: args.timePerWeek,
+        website: args.website,
+      },
+      createdAt: Date.now(),
+    });
+
+    if (args.anonymousId) {
+      await ctx.runMutation(internal.leads.linkAnonymousEvents, {
+        leadId,
+        anonymousId: args.anonymousId,
+      });
+    }
+
+    return { success: true, leadId };
+  },
+});
+
 /** List form submissions for a specific lead. */
 export const listByLead = query({
   args: {
@@ -191,6 +239,7 @@ export const list = query({
         v.literal("email_capture"),
         v.literal("contact_form"),
         v.literal("signal_score"),
+        v.literal("content_idea_generator"),
       ),
     ),
     limit: v.optional(v.number()),

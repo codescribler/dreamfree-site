@@ -2,6 +2,7 @@ import { MDXRemote } from "next-mdx-remote/rsc";
 import { TakeawayBox } from "./TakeawayBox";
 import { TableWrap } from "./TableWrap";
 import { EmailCapture } from "@/components/sections/EmailCapture";
+import { ContentIdeaGenerator } from "@/components/tools/ContentIdeaGenerator";
 
 function slugify(text: string): string {
   return text
@@ -17,6 +18,7 @@ const mdxComponents = {
   TakeawayBox,
   TableWrap,
   EmailCapture,
+  ContentIdeaGenerator,
   h2: (props: React.HTMLAttributes<HTMLHeadingElement>) => {
     const text =
       typeof props.children === "string" ? props.children : "";

@@ -53,6 +53,7 @@ export default defineSchema({
       v.literal("email_capture"),
       v.literal("contact_form"),
       v.literal("signal_score"),
+      v.literal("content_idea_generator"),
     ),
     data: v.any(),
     createdAt: v.number(),
@@ -152,6 +153,39 @@ export default defineSchema({
     .index("by_url", ["url"])
     .index("by_createdAt", ["createdAt"])
     .index("by_status", ["status"]),
+
+  contentPlans: defineTable({
+    leadId: v.id("leads"),
+    anonymousId: v.optional(v.string()),
+    // Inputs from the form
+    input: v.object({
+      name: v.string(),
+      email: v.string(),
+      businessDescription: v.string(),
+      goal: v.string(),
+      channelsTried: v.array(v.string()),
+      frustration: v.string(),
+      timePerWeek: v.string(),
+      website: v.optional(v.string()),
+    }),
+    // Structured output from the LLM
+    summary: v.string(),
+    ideas: v.array(
+      v.object({
+        title: v.string(),
+        format: v.string(),
+        keyword: v.string(),
+        why: v.string(),
+        brief: v.string(),
+        timeEstimate: v.string(),
+        priority: v.number(),
+      }),
+    ),
+    status: v.union(v.literal("success"), v.literal("failed")),
+    createdAt: v.number(),
+  })
+    .index("by_leadId", ["leadId"])
+    .index("by_createdAt", ["createdAt"]),
 
   callbackRequests: defineTable({
     leadId: v.id("leads"),
