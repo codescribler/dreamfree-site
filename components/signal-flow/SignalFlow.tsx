@@ -676,7 +676,7 @@ export function SignalFlow() {
             <p className="mb-8 text-sm leading-relaxed text-white/50">
               You&rsquo;ve already got 3 scores&rsquo; worth of insight.
               <br />
-              For a full Signal Method audit across all 5 elements, let&rsquo;s
+              For a full Signal Method audit across all 7 pillars, let&rsquo;s
               have a conversation.
             </p>
             <a

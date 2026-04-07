@@ -43,7 +43,7 @@ export async function generateMetadata({
   return buildMetadata({
     title: "Signal Score Report",
     description:
-      "Your personalised website messaging audit powered by The Signal Method.",
+      "Your personalised website messaging audit — measuring the Messaging pillar of The Signal Method.",
     path: `/report/${id}`,
   });
 }

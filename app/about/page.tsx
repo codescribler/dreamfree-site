@@ -12,41 +12,55 @@ export const metadata = buildMetadata({
   path: "/about",
 });
 
-const METHOD_ELEMENTS = [
+const METHOD_PILLARS = [
   {
     number: 1,
-    title: "Story",
+    title: "Research",
     description:
-      "Your customer is the hero. Your website must make it immediately clear who it serves and what outcome they\u2019re seeking.",
-    miss: "Most sites open with \u201cWelcome to [Business Name]\u201d \u2014 that\u2019s talking about yourself.",
+      "Before you communicate anything, you need to understand what your customers actually want — not what you think they want. We go to where they congregate and listen.",
+    miss: "Most businesses guess what their customers care about. They're usually wrong.",
   },
   {
     number: 2,
-    title: "Design",
+    title: "Messaging",
     description:
-      "Visual design that amplifies the message. Purposeful typography, imagery that supports the story, colour that guides emotion.",
-    miss: "Generic stock photos and template layouts that say nothing about the business.",
+      "Your copy and content must be built on story — positioning the customer as the hero of their own journey. Plus evergreen content that answers the questions they're actually asking.",
+    miss: "Sites that open with \u201cWelcome to [Business Name]\u201d and talk about themselves, not the customer.",
   },
   {
     number: 3,
-    title: "Direction",
+    title: "Design",
     description:
-      "Clear user flow with no dead ends. One primary CTA repeated consistently. A simple plan that removes confusion.",
-    miss: "Multiple competing CTAs, no obvious next step, visitors leave confused.",
+      "Visual design that amplifies the message — not decoration for its own sake. Every element earns its place. Professional, intentional, purposeful.",
+    miss: "Generic templates that look polished but achieve nothing. Design competing with the message instead of supporting it.",
   },
   {
     number: 4,
-    title: "Diagnosis",
+    title: "Credibility",
     description:
-      "The business positions itself as a credible guide \u2014 demonstrating empathy and authority through credentials, testimonials, and methodology.",
+      "Trust is built deliberately through case studies, testimonials, social proof, transparency, and demonstrated expertise. It's an active, ongoing output — not a checkbox.",
     miss: "No testimonials, no qualifications shown, nothing that says \u201cyou can trust us.\u201d",
   },
   {
     number: 5,
     title: "Measurement",
     description:
-      "Analytics, heatmaps, conversion tracking, and data-driven improvement. A website is never \u201cdone.\u201d",
-    miss: "Set-and-forget websites with no tracking, no idea what\u2019s working or not.",
+      "Define what success looks like for your business — not a template metric sheet. Then track performance against it. A website is never \u201cdone.\u201d",
+    miss: "Set-and-forget websites with no tracking, no idea what's working or not.",
+  },
+  {
+    number: 6,
+    title: "Experimentation",
+    description:
+      "No framework survives contact with reality unchanged. We build in a bias toward testing, learning, and adjusting — including exploring how AI can improve your marketing.",
+    miss: "Businesses that launch a website and never test anything. Dogmatic about what \u201cshould\u201d work.",
+  },
+  {
+    number: 7,
+    title: "Personalisation",
+    description:
+      "People pay attention to things that are about them. Tailored experiences — powered increasingly by AI — let you deliver relevance at scale.",
+    miss: "One-size-fits-all messaging that speaks to everyone and resonates with no one.",
   },
 ];
 
@@ -127,8 +141,9 @@ export default function AboutPage() {
               data-reveal
             >
               Former Royal Marine Commando turned web strategist. Daniel builds
-              websites that convert using The Signal Method &mdash; a framework
-              that puts your customer at the centre of every design decision.
+              websites that convert using The Signal Method &mdash; a
+              seven-pillar framework for cutting through marketing noise and
+              amplifying the signals that make your ideal customers take action.
             </p>
           </div>
         </div>
@@ -154,7 +169,7 @@ export default function AboutPage() {
             </em>
           </h2>
           <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {METHOD_ELEMENTS.map((el) => (
+            {METHOD_PILLARS.map((el) => (
               <div
                 key={el.number}
                 className="rounded-2xl border border-border bg-white p-8 transition-all duration-400 ease-smooth hover:-translate-y-[3px] hover:border-transparent hover:shadow-[0_16px_48px_rgba(13,115,119,0.08),0_4px_12px_rgba(0,0,0,0.04)]"
@@ -180,7 +195,7 @@ export default function AboutPage() {
               href="/the-signal-method"
               className="inline-block rounded-[60px] border-2 border-teal bg-transparent px-8 py-3 text-[0.9rem] font-semibold text-teal transition-all duration-350 ease-spring hover:-translate-y-0.5 hover:bg-teal hover:text-white hover:shadow-[0_6px_20px_rgba(13,115,119,0.25)]"
             >
-              Learn the Signal Method &mdash; free 5-day course
+              Learn the Signal Method &mdash; free 7-day course
             </Link>
           </div>
         </div>

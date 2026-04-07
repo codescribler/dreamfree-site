@@ -8,8 +8,8 @@ interface ReportActionsProps {
 export function ReportActions({ reportUrl, score }: ReportActionsProps) {
   const shareText =
     score >= 60
-      ? `My website scored ${score}/100 on The Signal Method audit — a messaging framework by Dreamfree.`
-      : `Just got my website audited with The Signal Method by Dreamfree — scored ${score}/100.`;
+      ? `My website scored ${score}/100 on the Signal Score — a messaging audit by Dreamfree, built on The Signal Method.`
+      : `Just got my website messaging audited by Dreamfree using The Signal Method — scored ${score}/100.`;
 
   const encodedUrl = encodeURIComponent(reportUrl);
   const encodedText = encodeURIComponent(shareText);

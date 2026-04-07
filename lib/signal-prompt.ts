@@ -2,7 +2,7 @@
  * The Signal Score system prompt.
  *
  * Based on the StoryBrand SB7 framework as practised in Dreamfree audits.
- * This prompt scores the messaging/communication element of The Signal Method.
+ * This prompt scores the Messaging pillar of The Signal Method — one of seven pillars in the framework.
  * Each sub-element is scored 1-10, total 70, normalised to /100.
  *
  * Reference: docs/superpowers/specs/2026-04-03-signal-score-grader-design.md

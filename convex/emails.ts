@@ -89,14 +89,14 @@ export const sendSignalScoreToVisitor = action({
         html: `
           <h2>Your Signal Score: ${args.overallScore}/100</h2>
           <p>Hi ${args.firstName},</p>
-          <p>We've just analysed <strong>${args.url}</strong> using The Signal Method — our five-element framework for turning your website into a lead-generating machine.</p>
+          <p>We've just analysed <strong>${args.url}</strong> using The Signal Method — our seven-pillar framework for cutting through marketing noise and amplifying the signals that win customers.</p>
           <p>${gruntResult}</p>
           <p>Your full element-by-element breakdown is ready:</p>
           <p><a href="${magicLink}" style="display:inline-block;padding:14px 28px;background:#0d7377;color:#fff;text-decoration:none;border-radius:60px;font-weight:600;font-size:15px;">See Your Full Breakdown</a></p>
           <p style="color:#7b7b96;font-size:13px;margin-top:16px;">If the button doesn't work, enter this code on the report page:</p>
           <p style="font-size:24px;font-weight:800;letter-spacing:4px;color:#1a1a2e;text-align:center;padding:12px;background:#f5f4f0;border-radius:12px;">${args.verifyCode}</p>
           <hr style="border:none;border-top:1px solid #e2e1dc;margin:24px 0;" />
-          <p style="color:#7b7b96;font-size:13px;">This is your Signal Score — how clearly your website communicates to your ideal customer. It's the first element of The Signal Method, and it's the one that matters most.</p>
+          <p style="color:#7b7b96;font-size:13px;">This is your Signal Score — how clearly your website communicates to your ideal customer. It measures the Messaging pillar of The Signal Method — and it's where most businesses need to start.</p>
           <p style="color:#7b7b96;font-size:13px;">Questions? Just reply to this email — it comes straight to me.</p>
           <p style="color:#7b7b96;font-size:13px;">— Daniel Whittaker, Dreamfree</p>
         `,

@@ -120,9 +120,9 @@ export default function Home() {
             <BentoCard
               tag="Framework"
               title="A Proven Framework, Not Guesswork"
-              description="Every Dreamfree website is built using The Signal Method — a five-element conversion framework that goes beyond messaging alone. Story, design, direction, diagnosis, and measurement working together. Our approach draws on Donald Miller's proven storytelling principles, but covers the full picture — because words alone don't convert."
+              description="Every Dreamfree website is built using The Signal Method — a seven-pillar framework for cutting through marketing noise and amplifying the signals that make your ideal customers take action. Research, messaging, design, credibility, measurement, experimentation, and personalisation — held together by one principle: coherence. Our approach draws on Donald Miller's storytelling principles, Marcus Sheridan's content strategy, and Amy Hoy's customer research — combined into a single, proven system."
               image="/images/framework2.png"
-              imageAlt="The Signal Method — five-element conversion framework diagram"
+              imageAlt="The Signal Method — seven-pillar framework diagram"
               wide
             />
             <BentoCard
@@ -226,7 +226,7 @@ export default function Home() {
               href="/learning-centre/signal-score-35"
               tag="Signal Score"
               title="What a Signal Score of 35 actually means — and how to fix it."
-              description="Most business websites score between 25 and 40. That's not a disaster — it's an opportunity. Here's what each of the five elements means and where to start."
+              description="Most business websites score between 25 and 40. That's not a disaster — it's an opportunity. Here's what your Signal Score measures and where to start."
               readTime="6 min read"
               highlight
             />
@@ -310,13 +310,13 @@ export default function Home() {
             <ServiceCard
               tag="Core Service"
               title="Signal Method Website Build"
-              description={'A full website built on The Signal Method. Five elements working together: story, design, direction, diagnosis, measurement. Every page structured to guide visitors from "just browsing" to "I need to call these people."'}
+              description={'A full website built on The Signal Method. Seven pillars working together: research, messaging, design, credibility, measurement, experimentation, and personalisation — held together by coherence. Every page structured to guide visitors from "just browsing" to "I need to call these people."'}
               hero
             />
             <ServiceCard
               tag="Diagnosis"
               title="Signal Score & Full Report"
-              description="Your free Signal Score tells you where you stand. The full Signal Report (£7) gives you the complete breakdown — all five elements scored, prioritised fixes, and a messaging blueprint you can act on today."
+              description="Your free Signal Score tells you where you stand. The full Signal Report (£7) gives you the complete breakdown — all seven messaging elements scored, prioritised fixes, and a blueprint you can act on today."
             />
             <ServiceCard
               tag="Risk-Free"

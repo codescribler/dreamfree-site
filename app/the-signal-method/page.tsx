@@ -4,47 +4,61 @@ import { FinalCta } from "@/components/sections/FinalCta";
 import { CourseSignup } from "@/components/sections/CourseSignup";
 
 export const metadata = buildMetadata({
-  title: "The Signal Method — Free 5-Day Email Course",
+  title: "The Signal Method — Free 7-Day Email Course",
   description:
-    "Learn the five elements every business website needs to convert visitors into customers. One lesson per day, zero fluff. Free.",
+    "Learn the seven pillars every business needs to cut through marketing noise and win customers. One lesson per day, zero fluff. Free.",
   path: "/the-signal-method",
 });
 
 const LESSONS = [
   {
     day: 1,
-    title: "Story",
-    subtitle: "Your customer is the hero — not you.",
+    title: "Research",
+    subtitle: "Before you speak, listen.",
     description:
-      "Most business websites open with the company name and a stock photo. Day one shows you why that drives visitors away, and how to rewrite your homepage around the person you actually serve.",
+      "Most businesses guess what their customers want. Day one shows you how to find out what they actually say, feel, and search for — by going to the places they already congregate.",
   },
   {
     day: 2,
-    title: "Design",
-    subtitle: "Visual hierarchy that amplifies your message.",
+    title: "Messaging",
+    subtitle: "Your customer is the hero, not you.",
     description:
-      "Good design isn\u2019t decoration \u2014 it\u2019s communication. Learn the squint test, why your current layout is hiding the things that matter, and how to fix it without a redesign.",
+      "Your website copy must be built on story — not features, not jargon. Day two shows you how to position your customer as the hero and create content that answers the questions they\u2019re actually asking.",
   },
   {
     day: 3,
-    title: "Direction",
-    subtitle: "Clear paths, not dead ends.",
+    title: "Design",
+    subtitle: "Support the signal, don\u2019t compete with it.",
     description:
-      "Every page should have one job. Day three covers the CTA hierarchy, the three-step plan that removes friction, and why competing calls to action are costing you enquiries.",
+      "Good design isn\u2019t decoration — it\u2019s communication. Learn why your current layout may be hiding the things that matter, and how intentional design amplifies your message.",
   },
   {
     day: 4,
-    title: "Diagnosis",
-    subtitle: "Be the guide, not the hero.",
+    title: "Credibility",
+    subtitle: "Trust is built, not claimed.",
     description:
-      "Visitors need to trust you before they\u2019ll call you. Learn how to demonstrate empathy and authority through testimonials, credentials, and methodology \u2014 without sounding arrogant.",
+      "Visitors need to trust you before they\u2019ll contact you. Day four covers how to build proof deliberately — through testimonials, case studies, transparency, and demonstrated expertise.",
   },
   {
     day: 5,
     title: "Measurement",
     subtitle: "If you can\u2019t measure it, you can\u2019t improve it.",
     description:
-      "A website is never done. Day five covers the three numbers every business owner should track, and how to set up simple measurement that tells you exactly what\u2019s working.",
+      "A website is never done. Day five covers how to define what success actually looks like for your business — not a template — and track the numbers that matter.",
+  },
+  {
+    day: 6,
+    title: "Experimentation",
+    subtitle: "Stay willing to be wrong.",
+    description:
+      "No framework survives contact with reality unchanged. Day six shows you how to build a bias toward testing and learning — including how AI is changing what\u2019s possible.",
+  },
+  {
+    day: 7,
+    title: "Personalisation",
+    subtitle: "Make it about them.",
+    description:
+      "People pay attention to things that are about them. The final lesson covers how to deliver tailored experiences at scale — so every visitor feels like your site was built for them.",
   },
 ];
 
@@ -52,9 +66,9 @@ export default function SignalMethodCoursePage() {
   return (
     <>
       <PageHero
-        title="The five things your website needs to"
+        title="The seven pillars your marketing needs to"
         titleAccent="actually convert."
-        subtitle="A free 5-day email course that teaches you The Signal Method — the same framework we use to build websites that bring in customers. One lesson per day, practical takeaways you can apply immediately."
+        subtitle="A free 7-day email course that teaches you The Signal Method — the framework we use to cut through marketing noise and amplify the signals that win customers. One lesson per day, practical takeaways you can apply immediately."
       />
 
       {/* ── SIGNUP ── */}
@@ -75,10 +89,10 @@ export default function SignalMethodCoursePage() {
             className="text-[clamp(2.25rem,5.5vw,4.5rem)] font-extrabold leading-[1.05] tracking-tighter text-charcoal"
             data-reveal
           >
-            Five days.
+            Seven days.
             <br />
             <em className="font-serif font-normal italic text-teal">
-              Five elements.
+              Seven pillars.
             </em>
           </h2>
           <div className="mt-12 space-y-0">
@@ -156,7 +170,7 @@ export default function SignalMethodCoursePage() {
               },
               {
                 title: "You just want to understand what \u201Cgood\u201D looks like.",
-                text: "Five short lessons that give you a vocabulary for talking about website performance.",
+                text: "Seven short lessons that give you a vocabulary for talking about website performance.",
               },
             ].map((item, i) => (
               <div
@@ -190,7 +204,7 @@ export default function SignalMethodCoursePage() {
               </em>
             </h2>
             <p className="mx-auto mt-4 max-w-[45ch] text-slate" data-reveal>
-              Five emails. Five elements. Zero cost. Unsubscribe any time.
+              Seven emails. Seven pillars. Zero cost. Unsubscribe any time.
             </p>
             <div className="mt-8" data-reveal>
               <CourseSignup />

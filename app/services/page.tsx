@@ -17,7 +17,7 @@ const SERVICES = [
     tag: "Core",
     title: "Signal Method Website Build",
     description:
-      "A full website built on The Signal Method. Five elements working together to guide visitors from browsing to buying.",
+      "A full website built on The Signal Method. Seven pillars working together to cut through noise and amplify the signals that make your ideal customers take action.",
     hero: true,
   },
   {
@@ -62,7 +62,7 @@ export default function ServicesPage() {
             serviceSchema({
               name: "Signal Method Website Build",
               description:
-                "A full website built on The Signal Method \u2014 five elements working together to guide visitors from browsing to buying.",
+                "A full website built on The Signal Method \u2014 seven pillars working together to cut through noise and amplify the signals that make your ideal customers take action.",
             })
           ),
         }}
@@ -71,7 +71,7 @@ export default function ServicesPage() {
       <PageHero
         title="Everything your website needs"
         titleAccent="to start converting."
-        subtitle="Every service is built on The Signal Method &mdash; the same five-element framework we use to audit, build, and optimise websites that actually drive enquiries."
+        subtitle="Every service is built on The Signal Method &mdash; the same seven-pillar framework we use to audit, build, and optimise websites that actually drive enquiries."
       />
 
       {/* ── SERVICE CARDS ── */}
