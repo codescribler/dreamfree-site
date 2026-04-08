@@ -318,6 +318,62 @@
   transform: translateY(0);
 }
 
+/* ── 404 SIGNAL BARS ── */
+
+.signal-bar {
+  display: inline-block;
+  width: 10px;
+  border-radius: 3px;
+  background: var(--color-teal);
+}
+
+.signal-bar-1 {
+  height: 10px;
+  animation: signal-strong 2.4s ease-in-out infinite;
+}
+.signal-bar-2 {
+  height: 18px;
+  animation: signal-ok 2.4s ease-in-out 0.15s infinite;
+}
+.signal-bar-3 {
+  height: 26px;
+  animation: signal-weak 2.4s ease-in-out 0.3s infinite;
+}
+.signal-bar-4 {
+  height: 34px;
+  animation: signal-dying 3s ease-in-out 0.45s infinite;
+}
+.signal-bar-5 {
+  height: 42px;
+  animation: signal-dead 3.5s ease-in-out 0.6s infinite;
+}
+
+@keyframes signal-strong {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; }
+}
+@keyframes signal-ok {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.8; }
+}
+@keyframes signal-weak {
+  0%, 70%, 100% { opacity: 0.15; }
+  30% { opacity: 0.5; }
+  35% { opacity: 0.1; }
+  40% { opacity: 0.45; }
+}
+@keyframes signal-dying {
+  0%, 100% { opacity: 0.06; }
+  45% { opacity: 0.25; }
+  50% { opacity: 0.04; }
+  55% { opacity: 0.2; }
+}
+@keyframes signal-dead {
+  0%, 100% { opacity: 0.03; }
+  60% { opacity: 0.12; }
+  62% { opacity: 0.02; }
+}
+
 /* ── REDUCED MOTION ── */
 
 @media (prefers-reduced-motion: reduce) {
