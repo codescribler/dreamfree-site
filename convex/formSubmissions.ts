@@ -240,6 +240,7 @@ export const list = query({
         v.literal("contact_form"),
         v.literal("signal_score"),
         v.literal("content_idea_generator"),
+        v.literal("demo_request"),
       ),
     ),
     limit: v.optional(v.number()),

@@ -10,6 +10,7 @@
 
 import type * as callbackRequests from "../callbackRequests.js";
 import type * as contentPlans from "../contentPlans.js";
+import type * as demoRequests from "../demoRequests.js";
 import type * as emails from "../emails.js";
 import type * as events from "../events.js";
 import type * as formSubmissions from "../formSubmissions.js";
@@ -26,6 +27,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   callbackRequests: typeof callbackRequests;
   contentPlans: typeof contentPlans;
+  demoRequests: typeof demoRequests;
   emails: typeof emails;
   events: typeof events;
   formSubmissions: typeof formSubmissions;

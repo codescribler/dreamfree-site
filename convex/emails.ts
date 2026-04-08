@@ -374,6 +374,138 @@ export const sendContentPlanToVisitor = internalAction({
   },
 });
 
+/** Confirm to the requester that their free demo request is queued. */
+export const sendDemoRequestConfirmation = internalAction({
+  args: {
+    firstName: v.string(),
+    email: v.string(),
+    businessName: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.error("RESEND_API_KEY not set — skipping demo request confirmation");
+      return;
+    }
+
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://dreamfree.co.uk";
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Daniel at Dreamfree <daniel@dreamfree.co.uk>",
+        to: args.email,
+        subject: `${args.firstName}, your free demo homepage is in the queue`,
+        html: `
+          <div style="font-family:-apple-system,sans-serif;max-width:600px;">
+            <h2 style="margin:0 0 12px;color:#1a1a2e;">Your Demo Request is Confirmed</h2>
+            <p style="font-size:15px;color:#4a4a68;line-height:1.7;">Hi ${args.firstName},</p>
+            <p style="font-size:15px;color:#4a4a68;line-height:1.7;">Thanks for requesting a free demo homepage for <strong>${args.businessName}</strong>. I&rsquo;ve got everything I need to get started.</p>
+            <p style="font-size:15px;color:#4a4a68;line-height:1.7;"><strong>Here&rsquo;s what happens next:</strong></p>
+            <ol style="font-size:15px;color:#4a4a68;line-height:1.9;padding-left:20px;">
+              <li>I&rsquo;ll research your business and your ideal customer</li>
+              <li>I&rsquo;ll write the messaging using The Signal Method</li>
+              <li>I&rsquo;ll design and build your demo homepage</li>
+              <li>I&rsquo;ll send you a link to review it &mdash; no obligation</li>
+            </ol>
+            <p style="font-size:15px;color:#4a4a68;line-height:1.7;">This usually takes a few working days. I&rsquo;ll be in touch as soon as it&rsquo;s ready.</p>
+            <p style="font-size:15px;color:#4a4a68;line-height:1.7;"><strong>In the meantime</strong>, want to see how your current site stacks up?</p>
+            <p style="margin:24px 0;">
+              <a href="${siteUrl}" style="display:inline-block;padding:14px 28px;background:#0d7377;color:#fff;text-decoration:none;border-radius:60px;font-weight:600;font-size:15px;">Get Your Free Signal Score</a>
+            </p>
+            <p style="font-size:15px;color:#4a4a68;line-height:1.7;">Questions? Just reply to this email &mdash; it comes straight to me.</p>
+            <hr style="border:none;border-top:1px solid #e2e1dc;margin:24px 0;" />
+            <p style="color:#7b7b96;font-size:13px;">&mdash; Daniel Whittaker, <a href="https://dreamfree.co.uk" style="color:#0d7377;">Dreamfree</a></p>
+          </div>
+        `,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("Resend API error (demo request confirmation):", error);
+    }
+  },
+});
+
+/** Notify Daniel of a new demo request with all submitted details. */
+export const sendDemoRequestNotification = internalAction({
+  args: {
+    firstName: v.string(),
+    email: v.string(),
+    phone: v.optional(v.string()),
+    businessName: v.string(),
+    website: v.optional(v.string()),
+    industry: v.string(),
+    idealCustomer: v.string(),
+    mainGoal: v.string(),
+    likedSites: v.optional(v.string()),
+    brandNotes: v.optional(v.string()),
+    additionalInfo: v.optional(v.string()),
+    requestId: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.error("RESEND_API_KEY not set — skipping demo request notification");
+      return;
+    }
+
+    const optionalRow = (label: string, value: string | undefined) =>
+      value
+        ? `<tr><td style="padding:6px 12px 6px 0;color:#888;">${label}</td><td style="padding:6px 0;">${value}</td></tr>`
+        : "";
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Dreamfree <notifications@dreamfree.co.uk>",
+        to: "daniel@dreamfree.co.uk",
+        reply_to: args.email,
+        subject: `New Demo Request: ${args.businessName} (${args.industry})`,
+        html: `
+          <div style="font-family:-apple-system,sans-serif;max-width:600px;">
+            <h2 style="margin:0 0 16px;">New Free Demo Request</h2>
+            <table style="border-collapse:collapse;width:100%;font-size:14px;">
+              <tr><td style="padding:6px 12px 6px 0;color:#888;">Name</td><td style="padding:6px 0;font-weight:600;">${args.firstName}</td></tr>
+              <tr><td style="padding:6px 12px 6px 0;color:#888;">Email</td><td style="padding:6px 0;">${args.email}</td></tr>
+              ${optionalRow("Phone", args.phone)}
+              <tr><td style="padding:6px 12px 6px 0;color:#888;">Business</td><td style="padding:6px 0;font-weight:600;">${args.businessName}</td></tr>
+              ${optionalRow("Website", args.website ? `<a href="${args.website}">${args.website}</a>` : undefined)}
+              <tr><td style="padding:6px 12px 6px 0;color:#888;">Industry</td><td style="padding:6px 0;">${args.industry}</td></tr>
+            </table>
+            <div style="margin:16px 0;padding:14px;background:#f5f4f0;border-radius:10px;">
+              <p style="margin:0 0 4px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">Ideal Customer</p>
+              <p style="margin:0;font-size:14px;">${args.idealCustomer}</p>
+            </div>
+            <div style="margin:16px 0;padding:14px;background:#f0f9f9;border-radius:10px;">
+              <p style="margin:0 0 4px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">Main Goal</p>
+              <p style="margin:0;font-size:14px;">${args.mainGoal}</p>
+            </div>
+            ${args.likedSites ? `<div style="margin:16px 0;padding:14px;background:#f5f4f0;border-radius:10px;"><p style="margin:0 0 4px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">Sites They Like</p><p style="margin:0;font-size:14px;">${args.likedSites}</p></div>` : ""}
+            ${args.brandNotes ? `<div style="margin:16px 0;padding:14px;background:#f5f4f0;border-radius:10px;"><p style="margin:0 0 4px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">Brand Notes</p><p style="margin:0;font-size:14px;">${args.brandNotes}</p></div>` : ""}
+            ${args.additionalInfo ? `<div style="margin:16px 0;padding:14px;background:#fff0f0;border-radius:10px;"><p style="margin:0 0 4px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">Additional Info</p><p style="margin:0;font-size:14px;">${args.additionalInfo}</p></div>` : ""}
+          </div>
+        `,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("Resend API error (demo request notification):", error);
+    }
+  },
+});
+
 /** Email a shared Signal Score report link to a recipient. */
 export const sendShareEmail = action({
   args: {

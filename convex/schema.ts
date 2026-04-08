@@ -54,6 +54,7 @@ export default defineSchema({
       v.literal("contact_form"),
       v.literal("signal_score"),
       v.literal("content_idea_generator"),
+      v.literal("demo_request"),
     ),
     data: v.any(),
     createdAt: v.number(),
@@ -199,6 +200,36 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_status", ["status"])
+    .index("by_createdAt", ["createdAt"]),
+
+  demoRequests: defineTable({
+    leadId: v.id("leads"),
+    firstName: v.string(),
+    email: v.string(),
+    phone: v.optional(v.string()),
+    businessName: v.string(),
+    website: v.optional(v.string()),
+    industry: v.string(),
+    idealCustomer: v.string(),
+    mainGoal: v.string(),
+    likedSites: v.optional(v.string()),
+    brandNotes: v.optional(v.string()),
+    additionalInfo: v.optional(v.string()),
+    status: v.union(
+      v.literal("requested"),
+      v.literal("in_progress"),
+      v.literal("demo_complete"),
+      v.literal("notification_sent"),
+      v.literal("customer_reviewed"),
+      v.literal("followed_up"),
+      v.literal("won"),
+      v.literal("lost"),
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_leadId", ["leadId"])
     .index("by_createdAt", ["createdAt"]),
 
   // ── FUTURE TABLES (defined now, populated later) ──
