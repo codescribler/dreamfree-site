@@ -25,7 +25,7 @@ export function Footer() {
           </div>
 
           {/* Link columns */}
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
             {/* Navigation */}
             <div>
               <h4 className="mb-4 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-white/40">
@@ -50,6 +50,47 @@ export function Footer() {
                     </Link>
                   </li>
                 ))}
+              </ul>
+            </div>
+
+            {/* Free Tools */}
+            <div>
+              <h4 className="mb-4 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-white/40">
+                Free Tools
+              </h4>
+              <ul className="space-y-2.5">
+                <li>
+                  <Link
+                    href="/free-tools"
+                    className="text-[0.9rem] transition-colors duration-300 ease-smooth hover:text-teal-bright"
+                  >
+                    All Free Tools
+                  </Link>
+                </li>
+                <li>
+                  <button
+                    data-modal="signal-flow"
+                    className="text-[0.9rem] transition-colors duration-300 ease-smooth hover:text-teal-bright"
+                  >
+                    Signal Score
+                  </button>
+                </li>
+                <li>
+                  <Link
+                    href="/learning-centre/content-marketing-ideas"
+                    className="text-[0.9rem] transition-colors duration-300 ease-smooth hover:text-teal-bright"
+                  >
+                    Content Idea Generator
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/free-demo"
+                    className="text-[0.9rem] transition-colors duration-300 ease-smooth hover:text-teal-bright"
+                  >
+                    Free Demo Homepage
+                  </Link>
+                </li>
               </ul>
             </div>
 
