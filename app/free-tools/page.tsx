@@ -55,7 +55,7 @@ export default function FreeToolsPage() {
             className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-muted"
             data-reveal
           >
-            No sign-up walls. No sales pitch. Just useful tools to help you
+            No account needed. No sales pitch. Just useful tools to help you
             understand your website, plan your content, and see what a better
             homepage looks like.
           </p>
