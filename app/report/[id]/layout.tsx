@@ -16,8 +16,12 @@ export default function ReportLayout({
           className="mx-auto flex h-14 max-w-[1340px] items-center justify-between"
           aria-label="Report navigation"
         >
-          <Link href="/" className="group flex items-center gap-2.5">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate transition-colors group-hover:text-teal">
+          <Link
+            href="/"
+            className="group flex items-center gap-1.5 rounded-[60px] border border-border bg-white/60 px-3 py-2 text-[0.85rem] font-medium text-slate transition-all duration-300 hover:-translate-y-0.5 hover:border-teal hover:text-charcoal hover:shadow-[0_4px_14px_rgba(13,115,119,0.12)] sm:gap-2 sm:px-4"
+            aria-label="Back to Dreamfree home"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 transition-transform duration-300 group-hover:-translate-x-0.5">
               <path d="M19 12H5m0 0l7 7m-7-7l7-7" />
             </svg>
             <Image
@@ -25,12 +29,12 @@ export default function ReportLayout({
               alt=""
               width={32}
               height={32}
-              className="h-8 w-auto max-sm:hidden"
+              className="h-6 w-auto max-sm:hidden"
               priority
             />
-            <span className="text-[0.85rem] font-medium text-slate transition-colors group-hover:text-charcoal sm:text-[1.15rem] sm:font-bold sm:tracking-tight sm:text-charcoal">
-              <span className="sm:hidden">Home</span>
-              <span className="hidden sm:inline">Dreamfree</span>
+            <span>
+              <span className="sm:hidden">Back</span>
+              <span className="hidden sm:inline">Back to Dreamfree</span>
             </span>
           </Link>
 
