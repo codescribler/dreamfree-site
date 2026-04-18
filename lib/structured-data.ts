@@ -117,3 +117,45 @@ export function serviceSchema({
     },
   };
 }
+
+export function offerSchema({
+  name,
+  description,
+  price,
+  url,
+}: {
+  name: string;
+  description: string;
+  price: string;
+  url: string;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Offer",
+    name,
+    description,
+    price,
+    priceCurrency: "GBP",
+    availability: "https://schema.org/InStock",
+    url,
+    seller: {
+      "@type": "Organization",
+      name: SITE.name,
+    },
+  };
+}
+
+export function faqPageSchema(items: { question: string; answer: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  };
+}
