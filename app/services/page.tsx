@@ -36,7 +36,8 @@ const SERVICES = [
     tag: "Ongoing",
     title: "Website Management",
     description:
-      "Monthly management \u2014 hosting, security, updates, content changes, performance monitoring. From \u00a379/month.",
+      "Monthly management \u2014 hosting, security, updates, content changes, performance monitoring. From \u00a3149/month.",
+    href: "/pricing",
   },
   {
     tag: "Optimisation",
@@ -101,6 +102,7 @@ export default function ServicesPage() {
                 title={svc.title}
                 description={svc.description}
                 hero={svc.hero}
+                href={svc.href}
               />
             ))}
           </div>

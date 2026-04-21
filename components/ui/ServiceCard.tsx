@@ -1,8 +1,12 @@
+import Link from "next/link";
+
 interface ServiceCardProps {
   tag: string;
   title: string;
   description: string;
   hero?: boolean;
+  href?: string;
+  linkLabel?: string;
 }
 
 export function ServiceCard({
@@ -10,6 +14,8 @@ export function ServiceCard({
   title,
   description,
   hero = false,
+  href,
+  linkLabel = "See pricing →",
 }: ServiceCardProps) {
   return (
     <div
@@ -45,6 +51,16 @@ export function ServiceCard({
       >
         {description}
       </p>
+      {href && (
+        <Link
+          href={href}
+          className={`mt-4 text-[0.9rem] font-medium underline-offset-4 transition-colors hover:underline ${
+            hero ? "text-teal-bright" : "text-teal"
+          }`}
+        >
+          {linkLabel}
+        </Link>
+      )}
     </div>
   );
 }
