@@ -9,7 +9,8 @@ export const SITE = {
   location: "Bovingdon, Hertfordshire",
   owner: "Daniel Whittaker",
   ownerTitle: "Former Royal Marine Commando turned web strategist",
-  clarityId: "vumg7p891a",
+  clarityId: "wg67hzarc6",
+  gaId: "G-WW95SD717N",
 } as const;
 
 export const NAV_LINKS = [
