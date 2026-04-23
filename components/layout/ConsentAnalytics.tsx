@@ -8,12 +8,34 @@ import { SITE } from "@/lib/constants";
 
 export function ConsentAnalytics() {
   const [consented, setConsented] = useState(false);
+  const [optedOut, setOptedOut] = useState(true);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    let paramsChanged = false;
+    if (params.has("no-track")) {
+      localStorage.setItem("df_track", "off");
+      params.delete("no-track");
+      paramsChanged = true;
+    } else if (params.has("track")) {
+      localStorage.removeItem("df_track");
+      params.delete("track");
+      paramsChanged = true;
+    }
+    if (paramsChanged) {
+      const qs = params.toString();
+      const newUrl =
+        window.location.pathname +
+        (qs ? `?${qs}` : "") +
+        window.location.hash;
+      window.history.replaceState(null, "", newUrl);
+    }
+
+    setOptedOut(localStorage.getItem("df_track") === "off");
     setConsented(getCookieConsent() === "all");
   }, []);
 
-  if (!consented) return null;
+  if (optedOut || !consented) return null;
 
   return (
     <>
