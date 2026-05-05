@@ -14,6 +14,7 @@ export interface ArticleFrontmatter {
   author: string;
   takeaway: string;
   relatedSlugs: string[];
+  faqs?: { question: string; answer: string }[];
 }
 
 export interface ArticleMeta extends ArticleFrontmatter {
