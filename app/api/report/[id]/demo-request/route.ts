@@ -24,6 +24,15 @@ export async function POST(
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
+  // Persist the demo request so it shows up in the database / mission control.
+  try {
+    await convex.mutation(api.demoRequests.submitFromReport, {
+      reportId: id as Id<"signalReports">,
+    });
+  } catch (err) {
+    console.error("Demo request DB write failed:", err);
+  }
+
   // Send notification email to Daniel
   const apiKey = process.env.RESEND_API_KEY;
   if (apiKey) {

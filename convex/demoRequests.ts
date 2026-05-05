@@ -118,6 +118,61 @@ export const submit = mutation({
   },
 });
 
+/**
+ * Record a demo request triggered from the Signal Score report page
+ * ("Show me what my homepage could look like" CTA). The lead is already
+ * known via the report; we only have website + idealCustomer from the
+ * audit, so businessName / industry / mainGoal are left blank.
+ */
+export const submitFromReport = mutation({
+  args: {
+    reportId: v.id("signalReports"),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ success: boolean; requestId: Id<"demoRequests"> }> => {
+    const report = await ctx.db.get(args.reportId);
+    if (!report) throw new Error("Report not found");
+    const lead = await ctx.db.get(report.leadId);
+    if (!lead) throw new Error("Lead not found");
+
+    const now = Date.now();
+
+    const requestId = await ctx.db.insert("demoRequests", {
+      leadId: lead._id,
+      firstName: lead.firstName ?? lead.name ?? "Unknown",
+      email: lead.email,
+      phone: lead.phone,
+      website: report.url,
+      idealCustomer: report.customerDescription,
+      additionalInfo: `Triggered from Signal Score report (score: ${report.overallScore}/100). Report id: ${args.reportId}.`,
+      status: "requested",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await ctx.db.insert("formSubmissions", {
+      leadId: lead._id,
+      type: "demo_request",
+      data: {
+        source: "report_page",
+        firstName: lead.firstName ?? lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        website: report.url,
+        idealCustomer: report.customerDescription,
+        signalScore: report.overallScore,
+        reportId: args.reportId,
+        requestId,
+      },
+      createdAt: now,
+    });
+
+    return { success: true, requestId };
+  },
+});
+
 /** Update the status of a demo request. */
 export const updateStatus = mutation({
   args: {
