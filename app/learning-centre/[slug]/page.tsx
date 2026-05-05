@@ -13,7 +13,7 @@ import { EmailCapture } from "@/components/sections/EmailCapture";
 import { CourseBanner } from "@/components/sections/CourseBanner";
 import { FinalCta } from "@/components/sections/FinalCta";
 import { buildMetadata } from "@/lib/metadata";
-import { articleSchema, breadcrumbSchema } from "@/lib/structured-data";
+import { articleSchema, breadcrumbSchema, faqPageSchema } from "@/lib/structured-data";
 import { SITE } from "@/lib/constants";
 import { notFound } from "next/navigation";
 
@@ -92,6 +92,14 @@ export default async function LearningCentreArticlePage({ params }: Props) {
           ),
         }}
       />
+      {article.faqs && article.faqs.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(faqPageSchema(article.faqs)),
+          }}
+        />
+      )}
       <ArticleHeader
         tag={article.tag}
         title={article.title}
