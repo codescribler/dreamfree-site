@@ -21,6 +21,14 @@ export default defineSchema({
     .index("by_tokenHash", ["tokenHash"])
     .index("by_email", ["email"]),
 
+  apiKeys: defineTable({
+    name: v.string(),
+    keyHash: v.string(),
+    lastCalledAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_keyHash", ["keyHash"]),
+
   leads: defineTable({
     email: v.string(),
     firstName: v.optional(v.string()),

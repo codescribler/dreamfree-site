@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as apiKeys from "../apiKeys.js";
 import type * as callbackRequests from "../callbackRequests.js";
 import type * as contentPlans from "../contentPlans.js";
 import type * as demoRequests from "../demoRequests.js";
@@ -16,6 +17,7 @@ import type * as events from "../events.js";
 import type * as formSubmissions from "../formSubmissions.js";
 import type * as leads from "../leads.js";
 import type * as loginTokens from "../loginTokens.js";
+import type * as missionControl from "../missionControl.js";
 import type * as signalReports from "../signalReports.js";
 import type * as users from "../users.js";
 
@@ -26,6 +28,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  apiKeys: typeof apiKeys;
   callbackRequests: typeof callbackRequests;
   contentPlans: typeof contentPlans;
   demoRequests: typeof demoRequests;
@@ -34,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   formSubmissions: typeof formSubmissions;
   leads: typeof leads;
   loginTokens: typeof loginTokens;
+  missionControl: typeof missionControl;
   signalReports: typeof signalReports;
   users: typeof users;
 }>;
