@@ -11,6 +11,16 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_email", ["email"]),
 
+  loginTokens: defineTable({
+    email: v.string(),
+    tokenHash: v.string(),
+    expiresAt: v.number(),
+    usedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_tokenHash", ["tokenHash"])
+    .index("by_email", ["email"]),
+
   leads: defineTable({
     email: v.string(),
     firstName: v.optional(v.string()),

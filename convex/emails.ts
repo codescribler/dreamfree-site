@@ -506,6 +506,52 @@ export const sendDemoRequestNotification = internalAction({
   },
 });
 
+/** Email a magic sign-in link to an admin user. */
+export const sendMagicLinkEmail = action({
+  args: {
+    email: v.string(),
+    link: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.error("RESEND_API_KEY not set — skipping magic link email");
+      return;
+    }
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Dreamfree <notifications@dreamfree.co.uk>",
+        to: args.email,
+        subject: "Your Dreamfree sign-in link",
+        html: `
+          <div style="font-family:-apple-system,sans-serif;max-width:600px;">
+            <h2 style="margin:0 0 12px;color:#1a1a2e;">Sign in to Dreamfree</h2>
+            <p style="font-size:15px;color:#4a4a68;line-height:1.7;">Click the button below to sign in. This link expires in 15 minutes and can only be used once.</p>
+            <p style="margin:24px 0;">
+              <a href="${args.link}" style="display:inline-block;padding:14px 28px;background:#0d7377;color:#fff;text-decoration:none;border-radius:60px;font-weight:600;font-size:15px;">Sign In</a>
+            </p>
+            <p style="font-size:13px;color:#7b7b96;line-height:1.6;">If the button doesn't work, paste this URL into your browser:</p>
+            <p style="font-size:13px;color:#7b7b96;word-break:break-all;">${args.link}</p>
+            <hr style="border:none;border-top:1px solid #e2e1dc;margin:24px 0;" />
+            <p style="color:#7b7b96;font-size:13px;">If you didn't request this, you can safely ignore this email.</p>
+          </div>
+        `,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("Resend API error (magic link):", error);
+    }
+  },
+});
+
 /** Email a shared Signal Score report link to a recipient. */
 export const sendShareEmail = action({
   args: {
