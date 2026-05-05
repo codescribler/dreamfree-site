@@ -43,6 +43,11 @@ const OUTCOMES = [
 
 const FAQ = [
   {
+    question: "Why not £80 a month, like the ads promise?",
+    answer:
+      "Because £80/month buys you hosting and a template — not a website that earns its keep. Squarespace, Wix, and a handful of UK agencies advertise that figure, and for a brochure site with five pages and no commercial purpose, that's a fair price. The £149 floor at Dreamfree pays for a real human technical partner: break-fix support when something goes wrong, hosting on fast modern infrastructure, ongoing maintenance, one mini update a month, and a website built from the ground up on the Signal Method to convert visitors into enquiries. If your website is a billboard, £80 is fine. If it's a salesperson, £80 won't cut it.",
+  },
+  {
     question: "Why don't you have fixed tiers?",
     answer:
       "Because no two small businesses need the same thing. A single-location dental practice and a multi-branch estate agent both want a website, but the work to make each one effective is completely different. Fixed tiers force you to either overpay for features you don't need or underspec and end up with a site that doesn't do its job. Outcome-based pricing matches the fee to what your website actually has to do.",
@@ -185,6 +190,58 @@ export default function PricingPage() {
             >
               Prefer to chat first? Book a 30-minute call
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── WHY NOT £80/MONTH ── */}
+      <section className="bg-white px-[clamp(1.25rem,4vw,3rem)] py-[clamp(4rem,10vw,8rem)]">
+        <div className="mx-auto max-w-[720px]">
+          <span
+            className="mb-5 inline-block text-[0.8rem] font-semibold uppercase tracking-[0.12em] text-teal"
+            data-reveal
+          >
+            The honest answer
+          </span>
+          <h2
+            className="text-[clamp(1.75rem,4vw,2.75rem)] font-bold leading-[1.15] tracking-tight text-charcoal"
+            data-reveal
+          >
+            Why not{" "}
+            <em className="font-serif font-normal italic text-teal">£80 a month</em>,
+            like the ads promise?
+          </h2>
+          <div className="mt-8 space-y-5 text-[1.05rem] leading-[1.7] text-slate">
+            <p data-reveal>
+              You can find £80/month websites everywhere &mdash; Squarespace, Wix,
+              and a handful of UK agencies advertise that figure. For a brochure
+              site with five pages and no real commercial purpose, that&rsquo;s
+              fair. We&rsquo;ll say so.
+            </p>
+            <p data-reveal>
+              What £80/month actually buys you: hosting and a template. No
+              technical partner. No break-fix support. No SEO. No analytics
+              reporting. When WordPress updates break the contact form, you find
+              a freelancer on Upwork. When the SSL certificate expires, you
+              Google your way through it. When you want to swap a photo, you log
+              in yourself.
+            </p>
+            <p data-reveal>
+              The £149/month floor at Dreamfree exists because every client gets
+              a real human technical partner from day one. Hosting, maintenance,
+              break-fix support, security updates, daily backups, and one mini
+              update a month &mdash; included. If something goes wrong, it&rsquo;s our
+              problem to fix, not yours to chase.
+            </p>
+            <p data-reveal>
+              If your website is a billboard,{" "}
+              <strong className="text-charcoal">£80 is fine</strong> &mdash; we&rsquo;ll
+              point you at Squarespace. If it&rsquo;s a salesperson that needs
+              to bring in enquiries every month,{" "}
+              <strong className="text-charcoal">£80 won&rsquo;t cut it</strong>,
+              and the cheap option ends up costing more in lost leads than the
+              fee you saved.
+            </p>
           </div>
         </div>
       </section>
