@@ -89,7 +89,10 @@ export function SelfTest() {
       </div>
 
       {recommendation && (
-        <div className="mt-8 rounded-xl border border-teal/30 bg-white p-5">
+        <div
+          className="mt-8 rounded-xl border border-teal/30 bg-white p-5"
+          aria-live="polite"
+        >
           <p className="mb-1 text-[0.8rem] font-semibold uppercase tracking-[0.12em] text-teal">
             Score: {score}/3
           </p>
