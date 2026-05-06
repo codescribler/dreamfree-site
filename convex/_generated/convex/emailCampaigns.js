@@ -818,3 +818,123 @@ export const requestRegeneration = mutation({
         await ctx.scheduler.runAfter(0, internal.emailCampaignsAction.regenerateFromRole, { enrollmentId: args.enrollmentId, fromOrder: args.fromOrder });
     },
 });
+// ===== Stats and queue queries =====
+export const getCampaignStats = query({
+    args: {},
+    handler: async (ctx) => {
+        const enrollments = await ctx.db.query("emailEnrollments").collect();
+        const sends = await ctx.db.query("emailSends").collect();
+        const suppressions = await ctx.db.query("emailSuppressions").collect();
+        const counts = {
+            generating: 0,
+            pending_approval: 0,
+            approved: 0,
+            paused: 0,
+            stopped: 0,
+            completed: 0,
+            unsubscribed: 0,
+            generation_failed: 0,
+        };
+        let pausedDueToReply = 0;
+        for (const e of enrollments) {
+            counts[e.status] = (counts[e.status] ?? 0) + 1;
+            if (e.status === "paused" && e.pausedReason === "replied") {
+                pausedDueToReply += 1;
+            }
+        }
+        const sentTotal = sends.length;
+        const opened = sends.filter((s) => s.openedAt !== undefined).length;
+        const clicked = sends.filter((s) => s.clickedAt !== undefined).length;
+        const unsubscribed = suppressions.filter((s) => s.reason === "unsubscribed").length;
+        return {
+            enrollments: counts,
+            pausedDueToReply,
+            sends: {
+                total: sentTotal,
+                opened,
+                clicked,
+                openRatePct: sentTotal > 0 ? (opened / sentTotal) * 100 : 0,
+                clickRatePct: sentTotal > 0 ? (clicked / sentTotal) * 100 : 0,
+            },
+            unsubscribed,
+        };
+    },
+});
+export const listPendingApproval = query({
+    args: { limit: v.optional(v.number()) },
+    handler: async (ctx, args) => {
+        const limit = args.limit ?? 25;
+        const enrollments = await ctx.db
+            .query("emailEnrollments")
+            .withIndex("by_status", (q) => q.eq("status", "pending_approval"))
+            .order("desc")
+            .take(limit);
+        return await Promise.all(enrollments.map(async (e) => {
+            const lead = await ctx.db.get(e.leadId);
+            const report = await ctx.db.get(e.reportId);
+            const drafts = await ctx.db
+                .query("emailDrafts")
+                .withIndex("by_enrollment", (q) => q.eq("enrollmentId", e._id))
+                .collect();
+            const staleCount = drafts.filter((d) => d.isStale).length;
+            const totalFlags = (e.verificationFlags?.voice.length ?? 0) +
+                (e.verificationFlags?.loops.length ?? 0) +
+                (e.verificationFlags?.cheese.length ?? 0) +
+                (e.verificationFlags?.factual.length ?? 0);
+            return {
+                enrollment: e,
+                lead,
+                report,
+                staleCount,
+                totalFlags,
+            };
+        }));
+    },
+});
+export const listActive = query({
+    args: { limit: v.optional(v.number()) },
+    handler: async (ctx, args) => {
+        const limit = args.limit ?? 25;
+        const enrollments = await ctx.db
+            .query("emailEnrollments")
+            .withIndex("by_status", (q) => q.eq("status", "approved"))
+            .order("desc")
+            .take(limit);
+        return await Promise.all(enrollments.map(async (e) => {
+            const lead = await ctx.db.get(e.leadId);
+            const drafts = await ctx.db
+                .query("emailDrafts")
+                .withIndex("by_enrollment", (q) => q.eq("enrollmentId", e._id))
+                .collect();
+            drafts.sort((a, b) => a.order - b.order);
+            const sent = drafts.filter((d) => d.status === "sent").length;
+            const nextScheduled = drafts.find((d) => d.status === "scheduled");
+            return {
+                enrollment: e,
+                lead,
+                sentCount: sent,
+                totalDrafts: drafts.length,
+                nextScheduled: nextScheduled
+                    ? {
+                        role: nextScheduled.role,
+                        scheduledFor: nextScheduled.scheduledFor,
+                    }
+                    : null,
+            };
+        }));
+    },
+});
+export const listRecentSends = query({
+    args: { limit: v.optional(v.number()) },
+    handler: async (ctx, args) => {
+        const limit = args.limit ?? 20;
+        const sends = await ctx.db
+            .query("emailSends")
+            .order("desc")
+            .take(limit);
+        return await Promise.all(sends.map(async (s) => {
+            const lead = await ctx.db.get(s.leadId);
+            return { send: s, lead };
+        }));
+    },
+});
