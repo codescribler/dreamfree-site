@@ -18,7 +18,7 @@ export function ReportCTA({ reportId, phone }: ReportCTAProps) {
         <h2 className="mb-3 text-xl font-bold text-charcoal">
           Want someone to fix this for you?
         </h2>
-        <p className="mb-6 text-[0.95rem] text-slate">
+        <p className="mx-auto mb-6 text-[0.95rem] text-slate">
           Daniel can walk you through your report and show you what your site
           could look like with these changes applied. Book a free 15-minute
           report review call — no obligation, no pressure.
@@ -29,7 +29,7 @@ export function ReportCTA({ reportId, phone }: ReportCTAProps) {
         >
           Request a Free Report Review Call
         </button>
-        <p className="mt-6 text-xs text-muted">
+        <p className="mx-auto mt-6 text-xs text-muted">
           Or call Daniel directly —{" "}
           <a
             href={SITE.phoneTel}
@@ -38,7 +38,7 @@ export function ReportCTA({ reportId, phone }: ReportCTAProps) {
             {SITE.phone}
           </a>
         </p>
-        <p className="mt-1 text-xs text-muted">
+        <p className="mx-auto mt-1 text-xs text-muted">
           <a
             href={`mailto:${SITE.email}?subject=My Signal Score report`}
             className="font-semibold text-teal transition-colors hover:text-teal-deep"

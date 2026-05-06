@@ -136,7 +136,7 @@ export default async function ReportPage({
         <h1 className="text-[clamp(1.75rem,4vw,2.5rem)] font-extrabold tracking-tight text-charcoal">
           {report.url.replace(/^https?:\/\//, "").replace(/\/$/, "")}
         </h1>
-        <p className="mt-2 text-sm text-muted">{reportDate}</p>
+        <p className="mx-auto mt-2 text-sm text-muted">{reportDate}</p>
       </div>
 
       {/* Score ring + context — PUBLIC */}
