@@ -7,6 +7,7 @@ import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import type { Doc } from "@/convex/_generated/dataModel";
+import { EmailCampaignSection } from "./EmailCampaignSection";
 
 const EVENT_LABELS: Record<string, string> = {
   page_view: "Page View",
@@ -133,6 +134,8 @@ export default function LeadDetailPage() {
           </div>
         )}
       </div>
+
+      <EmailCampaignSection leadId={lead._id} email={lead.email} />
 
       {/* Signal Reports */}
       {reports && reports.length > 0 && (

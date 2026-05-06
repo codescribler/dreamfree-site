@@ -933,6 +933,40 @@ export const getActiveSequence = query({
             .first();
     },
 });
+export const getEnrollmentByLead = query({
+    args: { leadId: v.id("leads") },
+    handler: async (ctx, args) => {
+        const enrollments = await ctx.db
+            .query("emailEnrollments")
+            .withIndex("by_leadId", (q) => q.eq("leadId", args.leadId))
+            .collect();
+        if (enrollments.length === 0)
+            return null;
+        // Most recent first
+        enrollments.sort((a, b) => b.enrolledAt - a.enrolledAt);
+        const latest = enrollments[0];
+        const drafts = await ctx.db
+            .query("emailDrafts")
+            .withIndex("by_enrollment", (q) => q.eq("enrollmentId", latest._id))
+            .collect();
+        const sentCount = drafts.filter((d) => d.status === "sent").length;
+        return {
+            enrollment: latest,
+            sentCount,
+            totalDrafts: drafts.length,
+        };
+    },
+});
+export const isEmailSuppressed = query({
+    args: { email: v.string() },
+    handler: async (ctx, args) => {
+        const sup = await ctx.db
+            .query("emailSuppressions")
+            .withIndex("by_email", (q) => q.eq("email", args.email))
+            .first();
+        return sup ?? null;
+    },
+});
 export const countStaleDraftsAll = query({
     args: {},
     handler: async (ctx) => {
