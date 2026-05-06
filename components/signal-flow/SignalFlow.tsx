@@ -290,6 +290,33 @@ export function SignalFlow() {
     return () => document.removeEventListener("click", handler);
   }, [open]);
 
+  // Open the modal automatically when the URL hash requests it.
+  // Supported aliases (case-insensitive):
+  //   #dosignalreport   #signal-score   #signalreport   #signalscore
+  // After opening we clean the hash so back/forward doesn't keep re-triggering.
+  useEffect(() => {
+    const HASH_ALIASES = new Set([
+      "dosignalreport",
+      "signalreport",
+      "signal-score",
+      "signalscore",
+    ]);
+    const checkHash = () => {
+      const hash = window.location.hash.replace(/^#/, "").toLowerCase();
+      if (HASH_ALIASES.has(hash)) {
+        open();
+        history.replaceState(
+          null,
+          "",
+          window.location.pathname + window.location.search,
+        );
+      }
+    };
+    checkHash();
+    window.addEventListener("hashchange", checkHash);
+    return () => window.removeEventListener("hashchange", checkHash);
+  }, [open]);
+
   // Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

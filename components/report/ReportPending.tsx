@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -21,11 +20,11 @@ interface ReportPendingProps {
 }
 
 export function ReportPending({ reportId, url }: ReportPendingProps) {
-  const router = useRouter();
   const data = useQuery(api.signalReports.getByIdWithLead, {
     reportId: reportId as Id<"signalReports">,
   });
   const [stepIndex, setStepIndex] = useState(0);
+  const hasReloadedRef = useRef(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -34,14 +33,17 @@ export function ReportPending({ reportId, url }: ReportPendingProps) {
     return () => clearInterval(interval);
   }, []);
 
-  // When the action completes (success or failure), refresh the page so the
-  // server component re-renders with the appropriate branch.
+  // When the action completes (success or failure), do a full reload so the
+  // server component re-renders against fresh state. router.refresh() can
+  // leave the client tree mounted with the old (pending) branch on Next.js
+  // 15; window.location.reload() guarantees the swap.
   useEffect(() => {
     if (!data?.report) return;
-    if (data.report.status !== "pending") {
-      router.refresh();
+    if (data.report.status !== "pending" && !hasReloadedRef.current) {
+      hasReloadedRef.current = true;
+      window.location.reload();
     }
-  }, [data?.report?.status, router, data?.report]);
+  }, [data?.report?.status, data?.report]);
 
   const cleanUrl = url.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
