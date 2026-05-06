@@ -525,3 +525,24 @@ export const getEnrollmentForGeneration = internalMutation({
     };
   },
 });
+
+const flagArrayValidator = v.array(
+  v.object({ role: v.string(), note: v.string() }),
+);
+
+export const setVerificationFlags = internalMutation({
+  args: {
+    enrollmentId: v.id("emailEnrollments"),
+    flags: v.object({
+      voice: flagArrayValidator,
+      loops: flagArrayValidator,
+      cheese: flagArrayValidator,
+      factual: flagArrayValidator,
+    }),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.enrollmentId, {
+      verificationFlags: args.flags,
+    });
+  },
+});

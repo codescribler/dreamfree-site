@@ -1,11 +1,13 @@
 import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { ROLES, } from "../lib/email-campaigns/roles";
+import { ROLES, VOICE_SPEC_STUB_MARKER, } from "../lib/email-campaigns/roles";
 import { callOpenRouter, parseLlmJson, OpenRouterError, } from "../lib/email-campaigns/openrouter";
 import { buildGenerationSystemPrompt, buildGenerationUserPrompt, } from "../lib/email-campaigns/generation-prompt";
 import { validateGenerationResult, GenerationResultError, } from "../lib/email-campaigns/generation-result";
 import { signUnsubscribeToken } from "../lib/email-campaigns/unsubscribe-token";
+import { VERIFIER_SYSTEM_PROMPT, buildVerifierUserPrompt, } from "../lib/email-campaigns/verifier-prompt";
+import { validateVerifierResult, VerifierResultError, } from "../lib/email-campaigns/verifier-result";
 const MODEL_PRIMARY = "google/gemini-2.5-flash";
 const MODEL_FALLBACK = "qwen/qwen3.6-plus";
 export const generateSequence = internalAction({
@@ -176,11 +178,131 @@ export const generateSequence = internalAction({
         await ctx.scheduler.runAfter(0, internal.emailCampaignsAction.verifySequence, { enrollmentId: args.enrollmentId });
     },
 });
-// Stub — replaced by Task 11. Without the stub the scheduler call above won't
-// typecheck during this commit.
+const VERIFIER_TEMPERATURE = 0.2;
+function makeStubVoiceFlags(drafts) {
+    return {
+        voice: drafts.map((d) => ({
+            role: d.role,
+            note: "Voice spec is still the stub. Fill it in before approving.",
+        })),
+        loops: [],
+        cheese: [],
+        factual: [],
+    };
+}
 export const verifySequence = internalAction({
     args: { enrollmentId: v.id("emailEnrollments") },
-    handler: async (_ctx, args) => {
-        console.log(`verifySequence stub for ${args.enrollmentId} — implemented in next task`);
+    handler: async (ctx, args) => {
+        const data = await ctx.runMutation(internal.emailCampaigns.getEnrollmentForGeneration, { enrollmentId: args.enrollmentId });
+        if (!data || !data.enrollment || !data.voiceSpec || !data.report) {
+            console.error(`verifySequence: missing data for ${args.enrollmentId}`);
+            return;
+        }
+        const draftsForVerifier = data.drafts.map((d) => ({
+            role: d.role,
+            order: d.order,
+            subject: d.subject,
+            bodyText: d.bodyText,
+            loopsOpenedHere: d.loopsOpenedHere,
+            loopsClosedHere: d.loopsClosedHere,
+            reportFindingsUsed: d.reportFindingsUsed,
+        }));
+        if (draftsForVerifier.length !== ROLES.length) {
+            console.warn(`verifySequence: expected ${ROLES.length} drafts, got ${draftsForVerifier.length} — skipping`);
+            return;
+        }
+        // Voice spec stub short-circuit
+        if (data.voiceSpec.body.includes(VOICE_SPEC_STUB_MARKER)) {
+            const stubFlags = makeStubVoiceFlags(draftsForVerifier);
+            await ctx.runMutation(internal.emailCampaigns.setVerificationFlags, {
+                enrollmentId: args.enrollmentId,
+                flags: stubFlags,
+            });
+            return;
+        }
+        const reportSummary = `URL: ${data.report.url}
+Customer: ${data.report.customerDescription}
+Overall: ${data.report.overallScore}/100
+Grunt test: ${data.report.gruntTest.pass ? "pass" : "fail"} — ${data.report.gruntTest.explanation}
+Quick win: ${data.report.quickWin}
+Strengths: ${data.report.strengths.join("; ")}
+Full summary: ${data.report.fullSummary}`;
+        const userPrompt = buildVerifierUserPrompt({
+            voiceSpec: data.voiceSpec.body,
+            drafts: draftsForVerifier,
+            reportSummary,
+        });
+        let raw;
+        try {
+            raw = await callOpenRouter({
+                model: MODEL_PRIMARY,
+                systemPrompt: VERIFIER_SYSTEM_PROMPT,
+                userPrompt,
+                temperature: VERIFIER_TEMPERATURE,
+                responseFormat: "json_object",
+                title: "Dreamfree Email Verifier",
+            });
+        }
+        catch (primaryErr) {
+            const primaryMsg = primaryErr instanceof OpenRouterError
+                ? primaryErr.message
+                : String(primaryErr);
+            console.warn(`verifySequence primary failed: ${primaryMsg}`);
+            try {
+                raw = await callOpenRouter({
+                    model: MODEL_FALLBACK,
+                    systemPrompt: VERIFIER_SYSTEM_PROMPT,
+                    userPrompt,
+                    temperature: VERIFIER_TEMPERATURE,
+                    responseFormat: "json_object",
+                    title: "Dreamfree Email Verifier (fallback)",
+                });
+            }
+            catch (fallbackErr) {
+                const fallbackMsg = fallbackErr instanceof OpenRouterError
+                    ? fallbackErr.message
+                    : String(fallbackErr);
+                console.error(`verifySequence both models failed for ${args.enrollmentId}: primary=${primaryMsg}; fallback=${fallbackMsg}`);
+                // Don't fail the enrollment — verification is informational. Persist
+                // a synthetic flag noting the verifier itself failed.
+                await ctx.runMutation(internal.emailCampaigns.setVerificationFlags, {
+                    enrollmentId: args.enrollmentId,
+                    flags: {
+                        voice: [
+                            {
+                                role: "sequence",
+                                note: `Verifier LLM failed: ${fallbackMsg}. Approve manually with caution.`,
+                            },
+                        ],
+                        loops: [],
+                        cheese: [],
+                        factual: [],
+                    },
+                });
+                return;
+            }
+        }
+        let result;
+        try {
+            result = validateVerifierResult(parseLlmJson(raw));
+        }
+        catch (err) {
+            const msg = err instanceof VerifierResultError ? err.message : String(err);
+            console.error(`verifySequence parse error: ${msg}`);
+            await ctx.runMutation(internal.emailCampaigns.setVerificationFlags, {
+                enrollmentId: args.enrollmentId,
+                flags: {
+                    voice: [{ role: "sequence", note: `Verifier parse failed: ${msg}` }],
+                    loops: [],
+                    cheese: [],
+                    factual: [],
+                },
+            });
+            return;
+        }
+        await ctx.runMutation(internal.emailCampaigns.setVerificationFlags, {
+            enrollmentId: args.enrollmentId,
+            flags: result,
+        });
     },
 });
