@@ -1020,7 +1020,7 @@ export const getCampaignStats = query({
     const sends = await ctx.db.query("emailSends").collect();
     const suppressions = await ctx.db.query("emailSuppressions").collect();
 
-    const counts: Record<string, number> = {
+    const counts = {
       generating: 0,
       pending_approval: 0,
       approved: 0,
