@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { DashboardNav } from "./DashboardNav";
 
 export default function DashboardLayout({
   children,
@@ -21,6 +22,7 @@ export default function DashboardLayout({
           <LogoutButton />
         </div>
       </header>
+      <DashboardNav />
       <main className="mx-auto max-w-7xl px-6 py-8">{children}</main>
     </div>
   );
