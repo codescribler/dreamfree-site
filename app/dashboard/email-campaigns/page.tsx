@@ -4,6 +4,9 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { KillSwitchPanel } from "./KillSwitchPanel";
 import { StatsGrid } from "./StatsGrid";
+import { PendingApprovalQueue } from "./PendingApprovalQueue";
+import { ActiveList } from "./ActiveList";
+import { RecentSends } from "./RecentSends";
 
 export default function EmailCampaignsPage() {
   const config = useQuery(api.emailCampaigns.getCampaignConfig);
@@ -20,6 +23,9 @@ export default function EmailCampaignsPage() {
 
       <KillSwitchPanel config={config ?? null} />
       <StatsGrid stats={stats ?? null} />
+      <PendingApprovalQueue />
+      <ActiveList />
+      <RecentSends />
     </div>
   );
 }
