@@ -240,7 +240,13 @@ export default function PricingPage() {
               to bring in enquiries every month,{" "}
               <strong className="text-charcoal">£80 won&rsquo;t cut it</strong>,
               and the cheap option ends up costing more in lost leads than the
-              fee you saved.
+              fee you saved.{" "}
+              <Link
+                href="/learning-centre/should-i-use-wix-or-hire-someone-uk"
+                className="font-medium text-teal underline-offset-4 transition-colors hover:underline"
+              >
+                Read the full Wix vs hiring someone breakdown &rarr;
+              </Link>
             </p>
           </div>
         </div>
