@@ -188,3 +188,115 @@ export const saveVoiceSpec = mutation({
         return { newId, version: newVersion };
     },
 });
+const roleValidator = v.union(v.literal("orientation"), v.literal("backstory"), v.literal("wall"), v.literal("epiphany"), v.literal("application"), v.literal("hidden_benefits"), v.literal("offer"));
+export const getCurrentBriefs = query({
+    args: { sequenceId: v.id("emailSequences") },
+    handler: async (ctx, args) => {
+        const briefs = [];
+        for (const role of ROLES) {
+            const brief = await ctx.db
+                .query("emailRoleBriefs")
+                .withIndex("by_sequence_role_isCurrent", (q) => q
+                .eq("sequenceId", args.sequenceId)
+                .eq("role", role)
+                .eq("isCurrent", true))
+                .first();
+            if (brief)
+                briefs.push(brief);
+        }
+        briefs.sort((a, b) => a.order - b.order);
+        return briefs;
+    },
+});
+export const getCurrentBrief = query({
+    args: {
+        sequenceId: v.id("emailSequences"),
+        role: roleValidator,
+    },
+    handler: async (ctx, args) => {
+        return await ctx.db
+            .query("emailRoleBriefs")
+            .withIndex("by_sequence_role_isCurrent", (q) => q
+            .eq("sequenceId", args.sequenceId)
+            .eq("role", args.role)
+            .eq("isCurrent", true))
+            .first();
+    },
+});
+export const listBriefVersions = query({
+    args: {
+        sequenceId: v.id("emailSequences"),
+        role: roleValidator,
+    },
+    handler: async (ctx, args) => {
+        return await ctx.db
+            .query("emailRoleBriefs")
+            .withIndex("by_sequence_role_version", (q) => q.eq("sequenceId", args.sequenceId).eq("role", args.role))
+            .order("desc")
+            .collect();
+    },
+});
+export const saveBrief = mutation({
+    args: {
+        sequenceId: v.id("emailSequences"),
+        role: roleValidator,
+        purpose: v.string(),
+        requiredBeats: v.string(),
+        loopsToOpen: v.string(),
+        loopsToClose: v.string(),
+        tone: v.string(),
+        lengthGuide: v.string(),
+        workedExample: v.string(),
+        editorEmail: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const previous = await ctx.db
+            .query("emailRoleBriefs")
+            .withIndex("by_sequence_role_isCurrent", (q) => q
+            .eq("sequenceId", args.sequenceId)
+            .eq("role", args.role)
+            .eq("isCurrent", true))
+            .first();
+        if (!previous) {
+            throw new Error(`No existing brief for sequence=${args.sequenceId} role=${args.role}. Run seed first.`);
+        }
+        await ctx.db.patch(previous._id, { isCurrent: false });
+        const newVersion = previous.version + 1;
+        const newId = await ctx.db.insert("emailRoleBriefs", {
+            sequenceId: args.sequenceId,
+            role: args.role,
+            order: previous.order,
+            purpose: args.purpose,
+            requiredBeats: args.requiredBeats,
+            loopsToOpen: args.loopsToOpen,
+            loopsToClose: args.loopsToClose,
+            tone: args.tone,
+            lengthGuide: args.lengthGuide,
+            workedExample: args.workedExample,
+            version: newVersion,
+            isCurrent: true,
+            createdAt: Date.now(),
+            createdBy: args.editorEmail,
+        });
+        // Mark drafts in pending_approval/approved enrollments as stale (this role only).
+        const allEnrollments = await ctx.db.query("emailEnrollments").collect();
+        const targets = allEnrollments.filter((e) => e.sequenceId === args.sequenceId &&
+            (e.status === "pending_approval" || e.status === "approved"));
+        for (const enrollment of targets) {
+            const drafts = await ctx.db
+                .query("emailDrafts")
+                .withIndex("by_enrollment", (q) => q.eq("enrollmentId", enrollment._id))
+                .collect();
+            for (const draft of drafts) {
+                if (draft.role !== args.role)
+                    continue;
+                if (draft.status === "sent")
+                    continue;
+                if (draft.briefVersionUsed < newVersion && !draft.isStale) {
+                    await ctx.db.patch(draft._id, { isStale: true });
+                }
+            }
+        }
+        return { newId, version: newVersion };
+    },
+});
