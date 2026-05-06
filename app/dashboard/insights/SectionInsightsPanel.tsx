@@ -14,7 +14,7 @@ interface SectionInsightsPanelProps {
 
 const MIN = 2;
 const MAX = 100;
-const DEFAULT_COUNT = 20;
+const DEFAULT_COUNT = 8;
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString("en-GB", {
@@ -119,6 +119,10 @@ export function SectionInsightsPanel({
           <p className="text-xs text-muted">
             {reportsAvailable} successful report
             {reportsAvailable === 1 ? "" : "s"} available
+          </p>
+          <p className="text-[10px] leading-snug text-muted">
+            Server times out after 60s — keep N around 8–12 unless reports are
+            short.
           </p>
           <button
             onClick={handleGenerate}

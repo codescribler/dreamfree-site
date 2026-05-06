@@ -15,7 +15,7 @@ import {
   ReportFragment,
 } from "@/lib/insights-prompt";
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
