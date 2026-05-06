@@ -515,3 +515,42 @@ export const tryEnrolFromReport = internalMutation({
         return enrollmentId;
     },
 });
+// ===== Read-only inspection queries =====
+export const listEnrollments = query({
+    args: {
+        status: v.optional(v.union(v.literal("generating"), v.literal("generation_failed"), v.literal("pending_approval"), v.literal("approved"), v.literal("paused"), v.literal("stopped"), v.literal("completed"), v.literal("unsubscribed"))),
+        limit: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
+        const limit = args.limit ?? 50;
+        const status = args.status;
+        const q = status
+            ? ctx.db
+                .query("emailEnrollments")
+                .withIndex("by_status", (qb) => qb.eq("status", status))
+            : ctx.db.query("emailEnrollments");
+        return await q.order("desc").take(limit);
+    },
+});
+export const getEnrollmentWithDrafts = query({
+    args: { enrollmentId: v.id("emailEnrollments") },
+    handler: async (ctx, args) => {
+        const enrollment = await ctx.db.get(args.enrollmentId);
+        if (!enrollment)
+            return null;
+        const drafts = await ctx.db
+            .query("emailDrafts")
+            .withIndex("by_enrollment", (q) => q.eq("enrollmentId", args.enrollmentId))
+            .collect();
+        drafts.sort((a, b) => a.order - b.order);
+        const lead = await ctx.db.get(enrollment.leadId);
+        const report = await ctx.db.get(enrollment.reportId);
+        return { enrollment, drafts, lead, report };
+    },
+});
+export const getCampaignConfig = query({
+    args: {},
+    handler: async (ctx) => {
+        return await ctx.db.query("campaignConfig").first();
+    },
+});
