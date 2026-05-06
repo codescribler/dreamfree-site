@@ -173,6 +173,30 @@ export default defineSchema({
     .index("by_createdAt", ["createdAt"])
     .index("by_status", ["status"]),
 
+  signalInsights: defineTable({
+    section: v.union(
+      v.literal("character"),
+      v.literal("problem"),
+      v.literal("guide"),
+      v.literal("plan"),
+      v.literal("cta"),
+      v.literal("stakes"),
+      v.literal("transformation"),
+    ),
+    reportCount: v.number(),
+    reportsAnalysed: v.array(v.id("signalReports")),
+    summary: v.string(),
+    contentIdeas: v.array(
+      v.object({
+        hook: v.string(),
+        angle: v.string(),
+        format: v.optional(v.string()),
+      }),
+    ),
+    modelUsed: v.string(),
+    createdAt: v.number(),
+  }).index("by_section_and_createdAt", ["section", "createdAt"]),
+
   contentPlans: defineTable({
     leadId: v.id("leads"),
     anonymousId: v.optional(v.string()),
