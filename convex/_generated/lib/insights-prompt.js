@@ -44,6 +44,12 @@ Prioritise insights that would make someone reading a LinkedIn post say "that's 
 
 Output strict JSON only — no markdown code fences around the JSON, no commentary before or after.
 
+**Critical JSON rules** — your response must parse with JSON.parse() on the first try:
+- All newlines inside string values MUST be written as the two characters \\n, not as a real line break
+- All double-quote characters inside string values MUST be escaped as \\"
+- All backslashes inside string values MUST be escaped as \\\\
+- Do NOT put a real (literal) newline inside any string — only \\n
+
 The "summary" field IS markdown — use real markdown syntax that will be rendered:
 - ## for major pattern headings
 - ### for sub-points
@@ -93,32 +99,55 @@ export function parseInsightResponse(raw) {
         .replace(/^```\s*/i, "")
         .replace(/```\s*$/i, "")
         .trim();
-    const parsed = JSON.parse(cleaned);
+    // Models occasionally emit invalid JSON when asked to embed markdown
+    // inside a string field (literal newlines, unescaped quotes). Try strict
+    // parse first, then fall back to jsonrepair which fixes common LLM JSON
+    // mistakes without changing valid input.
+    let parsed;
+    try {
+        parsed = JSON.parse(cleaned);
+    }
+    catch (strictErr) {
+        try {
+            // Dynamic require so the function works in environments without the
+            // dep (it's added as a runtime dep alongside this file).
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const { jsonrepair } = require("jsonrepair");
+            parsed = JSON.parse(jsonrepair(cleaned));
+        }
+        catch (repairErr) {
+            const strict = strictErr instanceof Error ? strictErr.message : String(strictErr);
+            const repair = repairErr instanceof Error ? repairErr.message : String(repairErr);
+            throw new Error(`JSON parse failed even after repair. strict=${strict} | repair=${repair}`);
+        }
+    }
     if (typeof parsed !== "object" || parsed === null) {
         throw new Error("Response was not an object");
     }
-    if (typeof parsed.summary !== "string" || parsed.summary.length === 0) {
+    const obj = parsed;
+    if (typeof obj.summary !== "string" || obj.summary.length === 0) {
         throw new Error("Missing or empty `summary` string");
     }
-    if (!Array.isArray(parsed.contentIdeas)) {
+    if (!Array.isArray(obj.contentIdeas)) {
         throw new Error("Missing `contentIdeas` array");
     }
-    const contentIdeas = parsed.contentIdeas.map((idea, i) => {
+    const summary = obj.summary;
+    const contentIdeas = obj.contentIdeas.map((idea, i) => {
         if (typeof idea !== "object" || idea === null) {
             throw new Error(`contentIdeas[${i}] is not an object`);
         }
-        const obj = idea;
-        if (typeof obj.hook !== "string" || obj.hook.length === 0) {
+        const ideaObj = idea;
+        if (typeof ideaObj.hook !== "string" || ideaObj.hook.length === 0) {
             throw new Error(`contentIdeas[${i}].hook missing`);
         }
-        if (typeof obj.angle !== "string" || obj.angle.length === 0) {
+        if (typeof ideaObj.angle !== "string" || ideaObj.angle.length === 0) {
             throw new Error(`contentIdeas[${i}].angle missing`);
         }
-        const result = { hook: obj.hook, angle: obj.angle };
-        if (typeof obj.format === "string" && obj.format.length > 0) {
-            result.format = obj.format;
+        const result = { hook: ideaObj.hook, angle: ideaObj.angle };
+        if (typeof ideaObj.format === "string" && ideaObj.format.length > 0) {
+            result.format = ideaObj.format;
         }
         return result;
     });
-    return { summary: parsed.summary, contentIdeas };
+    return { summary, contentIdeas };
 }

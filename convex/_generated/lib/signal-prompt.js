@@ -7,7 +7,7 @@
  *
  * Reference: docs/superpowers/specs/2026-04-03-signal-score-grader-design.md
  */
-export const OPENROUTER_MODEL_PRIMARY = "google/gemini-flash-latest";
+export const OPENROUTER_MODEL_PRIMARY = "google/gemini-2.5-flash";
 export const OPENROUTER_MODEL_FALLBACK = "qwen/qwen3.6-plus";
 export function buildSignalPrompt(htmlContent, customerDescription) {
     const system = `You are a website messaging expert trained in Donald Miller's StoryBrand SB7 framework. You audit business websites for clear, customer-focused communication.
