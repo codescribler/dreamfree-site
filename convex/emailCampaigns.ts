@@ -385,3 +385,143 @@ export const saveBrief = mutation({
     return { newId, version: newVersion };
   },
 });
+
+// ===== Internal mutations called by the generation action =====
+
+export const insertGeneratedDraft = internalMutation({
+  args: {
+    enrollmentId: v.id("emailEnrollments"),
+    role: roleValidator,
+    order: v.number(),
+    subject: v.string(),
+    bodyHtml: v.string(),
+    bodyText: v.string(),
+    briefVersionUsed: v.number(),
+    voiceVersionUsed: v.number(),
+    loopsOpenedHere: v.array(v.string()),
+    loopsClosedHere: v.array(v.string()),
+    reportFindingsUsed: v.array(v.string()),
+    unsubscribeToken: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("emailDrafts", {
+      enrollmentId: args.enrollmentId,
+      role: args.role,
+      order: args.order,
+      subject: args.subject,
+      bodyHtml: args.bodyHtml,
+      bodyText: args.bodyText,
+      status: "draft",
+      briefVersionUsed: args.briefVersionUsed,
+      voiceVersionUsed: args.voiceVersionUsed,
+      loopsOpenedHere: args.loopsOpenedHere,
+      loopsClosedHere: args.loopsClosedHere,
+      reportFindingsUsed: args.reportFindingsUsed,
+      isStale: false,
+      editedByDaniel: false,
+      unsubscribeToken: args.unsubscribeToken,
+    });
+  },
+});
+
+export const setDraftUnsubscribeToken = internalMutation({
+  args: {
+    draftId: v.id("emailDrafts"),
+    token: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.draftId, { unsubscribeToken: args.token });
+  },
+});
+
+export const updateEnrollmentLoopLedger = internalMutation({
+  args: {
+    enrollmentId: v.id("emailEnrollments"),
+    loopLedger: v.array(
+      v.object({
+        id: v.string(),
+        openedInRole: v.string(),
+        closedInRole: v.optional(v.string()),
+        description: v.string(),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.enrollmentId, {
+      loopLedger: args.loopLedger,
+    });
+  },
+});
+
+export const setEnrollmentStatus = internalMutation({
+  args: {
+    enrollmentId: v.id("emailEnrollments"),
+    status: v.union(
+      v.literal("generating"),
+      v.literal("generation_failed"),
+      v.literal("pending_approval"),
+      v.literal("approved"),
+      v.literal("paused"),
+      v.literal("stopped"),
+      v.literal("completed"),
+      v.literal("unsubscribed"),
+    ),
+    generationError: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const patch: Record<string, unknown> = { status: args.status };
+    if (args.generationError !== undefined) {
+      patch.generationError = args.generationError;
+    }
+    await ctx.db.patch(args.enrollmentId, patch);
+  },
+});
+
+export const getEnrollmentForGeneration = internalMutation({
+  // Read-only logic but uses internalMutation so the action can call it
+  // and read fresh state between steps.
+  args: { enrollmentId: v.id("emailEnrollments") },
+  handler: async (ctx, args) => {
+    const enrollment = await ctx.db.get(args.enrollmentId);
+    if (!enrollment) return null;
+    const lead = await ctx.db.get(enrollment.leadId);
+    const report = await ctx.db.get(enrollment.reportId);
+    const sequence = await ctx.db.get(enrollment.sequenceId);
+    const voiceSpec = await ctx.db
+      .query("emailVoiceSpec")
+      .withIndex("by_isCurrent", (q) => q.eq("isCurrent", true))
+      .first();
+    // Briefs: one per role, fetch each via the precise indexed lookup.
+    const briefs: Doc<"emailRoleBriefs">[] = [];
+    for (const role of ROLES) {
+      const brief = await ctx.db
+        .query("emailRoleBriefs")
+        .withIndex("by_sequence_role_isCurrent", (q) =>
+          q
+            .eq("sequenceId", enrollment.sequenceId)
+            .eq("role", role)
+            .eq("isCurrent", true),
+        )
+        .first();
+      if (brief) briefs.push(brief);
+    }
+    briefs.sort((a, b) => a.order - b.order);
+    const drafts = await ctx.db
+      .query("emailDrafts")
+      .withIndex("by_enrollment", (q) =>
+        q.eq("enrollmentId", args.enrollmentId),
+      )
+      .collect();
+    drafts.sort((a, b) => a.order - b.order);
+
+    return {
+      enrollment,
+      lead,
+      report,
+      sequence,
+      voiceSpec,
+      briefs,
+      drafts,
+    };
+  },
+});
