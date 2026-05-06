@@ -437,3 +437,81 @@ export const setVerificationFlags = internalMutation({
         });
     },
 });
+/**
+ * Called by signalReportsAction after a successful Signal Report. Returns the
+ * new enrollmentId if one was created, or null if the trigger was skipped
+ * (suppression / duplicate enrollment / no active sequence / no voice spec).
+ */
+export const tryEnrolFromReport = internalMutation({
+    args: {
+        reportId: v.id("signalReports"),
+    },
+    returns: v.union(v.id("emailEnrollments"), v.null()),
+    handler: async (ctx, args) => {
+        const report = await ctx.db.get(args.reportId);
+        if (!report) {
+            console.warn(`tryEnrolFromReport: report ${args.reportId} not found`);
+            return null;
+        }
+        if (report.status !== "success") {
+            console.warn(`tryEnrolFromReport: report ${args.reportId} status=${report.status}, skipping`);
+            return null;
+        }
+        const lead = await ctx.db.get(report.leadId);
+        if (!lead) {
+            console.warn(`tryEnrolFromReport: lead ${report.leadId} not found`);
+            return null;
+        }
+        // Suppression guard
+        const suppression = await ctx.db
+            .query("emailSuppressions")
+            .withIndex("by_email", (q) => q.eq("email", lead.email))
+            .first();
+        if (suppression) {
+            console.log(`tryEnrolFromReport: ${lead.email} suppressed (${suppression.reason}), skipping`);
+            return null;
+        }
+        // Active enrollment guard
+        const existing = await ctx.db
+            .query("emailEnrollments")
+            .withIndex("by_leadId", (q) => q.eq("leadId", report.leadId))
+            .collect();
+        const blocking = existing.find((e) => [
+            "generating",
+            "pending_approval",
+            "approved",
+            "paused",
+        ].includes(e.status));
+        if (blocking) {
+            console.log(`tryEnrolFromReport: lead ${report.leadId} already has enrollment ${blocking._id} status=${blocking.status}, skipping`);
+            return null;
+        }
+        // Sequence active guard
+        const sequence = await ctx.db
+            .query("emailSequences")
+            .withIndex("by_trigger", (q) => q.eq("trigger", "signal_report_success"))
+            .first();
+        if (!sequence || !sequence.isActive) {
+            console.log(`tryEnrolFromReport: no active sequence for signal_report_success, skipping`);
+            return null;
+        }
+        const voiceSpec = await ctx.db
+            .query("emailVoiceSpec")
+            .withIndex("by_isCurrent", (q) => q.eq("isCurrent", true))
+            .first();
+        if (!voiceSpec) {
+            console.error(`tryEnrolFromReport: no current voice spec, skipping`);
+            return null;
+        }
+        const enrollmentId = await ctx.db.insert("emailEnrollments", {
+            leadId: report.leadId,
+            sequenceId: sequence._id,
+            reportId: args.reportId,
+            status: "generating",
+            voiceVersionUsed: voiceSpec.version,
+            loopLedger: [],
+            enrolledAt: Date.now(),
+        });
+        return enrollmentId;
+    },
+});
