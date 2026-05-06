@@ -248,3 +248,52 @@ export const addShareToken = mutation({
         });
     },
 });
+const SECTION_KEYS = [
+    "character",
+    "problem",
+    "guide",
+    "plan",
+    "cta",
+    "stakes",
+    "transformation",
+];
+/** All-time averages for each SB7 section across successful reports. */
+export const averagesBySection = query({
+    args: {},
+    handler: async (ctx) => {
+        const successful = await ctx.db
+            .query("signalReports")
+            .withIndex("by_status", (q) => q.eq("status", "success"))
+            .collect();
+        const totals = {
+            character: { sum: 0, count: 0 },
+            problem: { sum: 0, count: 0 },
+            guide: { sum: 0, count: 0 },
+            plan: { sum: 0, count: 0 },
+            cta: { sum: 0, count: 0 },
+            stakes: { sum: 0, count: 0 },
+            transformation: { sum: 0, count: 0 },
+        };
+        for (const report of successful) {
+            for (const key of SECTION_KEYS) {
+                const score = report.elements[key]?.score;
+                if (typeof score === "number") {
+                    totals[key].sum += score;
+                    totals[key].count += 1;
+                }
+            }
+        }
+        const sections = {};
+        for (const key of SECTION_KEYS) {
+            const { sum, count } = totals[key];
+            sections[key] = {
+                average: count === 0 ? 0 : sum / count,
+                count,
+            };
+        }
+        return {
+            counts: { successful: successful.length },
+            sections,
+        };
+    },
+});
