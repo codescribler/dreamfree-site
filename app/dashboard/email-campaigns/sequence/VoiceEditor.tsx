@@ -21,6 +21,9 @@ export function VoiceEditor() {
       setBody(current.body);
       setSaved(false);
     }
+    // Intentionally tracking only identity — full `current` would re-fire on
+    // every server poll even when nothing changed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current?._id, current?.version, current?.body]);
 
   async function onSave() {

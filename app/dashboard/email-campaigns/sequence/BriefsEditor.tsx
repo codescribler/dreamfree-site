@@ -104,6 +104,9 @@ function BriefForm({ brief }: { brief: Doc<"emailRoleBriefs"> }) {
   const [saved, setSaved] = useState(false);
 
   // Re-sync when a different brief is loaded into the same form.
+  // Intentionally partial deps: the form is keyed by _id at the parent so
+  // it remounts on selection change; this effect handles the "saved → new
+  // version" case where the same role's brief gets a new identity.
   useEffect(() => {
     setValues({
       purpose: brief.purpose,
@@ -115,6 +118,7 @@ function BriefForm({ brief }: { brief: Doc<"emailRoleBriefs"> }) {
       workedExample: brief.workedExample,
     });
     setSaved(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brief._id, brief.version]);
 
   async function save() {
