@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "convex/react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -141,36 +142,7 @@ export default function LeadDetailPage() {
           </h2>
           <div className="space-y-3">
             {reports.map((report: Doc<"signalReports">) => (
-              <Link
-                key={report._id}
-                href={`/report/${report._id}`}
-                className="flex items-center justify-between rounded-xl border border-border bg-white px-5 py-4 transition hover:bg-warm-grey/30"
-              >
-                <div>
-                  <p className="text-sm font-medium text-charcoal">
-                    {report.url.replace(/^https?:\/\//, "").replace(/\/$/, "")}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted">
-                    {formatDate(report.createdAt)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  {report.status === "success" && (
-                    <span className="text-lg font-bold text-teal">
-                      {report.overallScore}/100
-                    </span>
-                  )}
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      report.status === "success"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    {report.status}
-                  </span>
-                </div>
-              </Link>
+              <ReportRow key={report._id} report={report} />
             ))}
           </div>
         </section>
@@ -239,6 +211,97 @@ export default function LeadDetailPage() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+const STATUS_BADGE: Record<string, string> = {
+  success: "bg-green-100 text-green-700",
+  pending: "bg-blue-100 text-blue-700",
+  rate_limited: "bg-amber-100 text-amber-700",
+  fetch_failed: "bg-red-100 text-red-700",
+  llm_failed: "bg-red-100 text-red-700",
+};
+
+function ReportRow({ report }: { report: Doc<"signalReports"> }) {
+  const router = useRouter();
+  const [isReRunning, setIsReRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleRerun(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (
+      !confirm(
+        "Reset this user's rate limit and re-run a fresh report for them? They'll receive an email when it's ready.",
+      )
+    ) {
+      return;
+    }
+    setIsReRunning(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/dashboard/reports/${report._id}/rerun`,
+        { method: "POST" },
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || data.error || `HTTP ${res.status}`);
+      }
+      router.push(`/report/${data.newReportId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Re-run failed");
+      setIsReRunning(false);
+    }
+  }
+
+  const cleanUrl = report.url
+    .replace(/^https?:\/\//, "")
+    .replace(/\/$/, "");
+
+  return (
+    <div className="rounded-xl border border-border bg-white">
+      <div className="flex items-center justify-between gap-4 px-5 py-4">
+        <Link
+          href={`/report/${report._id}`}
+          className="min-w-0 flex-1 transition hover:opacity-80"
+        >
+          <p className="truncate text-sm font-medium text-charcoal">
+            {cleanUrl}
+          </p>
+          <p className="mt-0.5 text-xs text-muted">
+            {formatDate(report.createdAt)}
+          </p>
+        </Link>
+        <div className="flex shrink-0 items-center gap-3">
+          {report.status === "success" && (
+            <span className="text-lg font-bold text-teal">
+              {report.overallScore}/100
+            </span>
+          )}
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[report.status] ?? "bg-gray-100 text-gray-600"}`}
+          >
+            {report.status}
+          </span>
+          {report.status === "rate_limited" && (
+            <button
+              type="button"
+              onClick={handleRerun}
+              disabled={isReRunning}
+              className="rounded-md bg-teal px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-teal-deep disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isReRunning ? "Running…" : "Reset & re-run"}
+            </button>
+          )}
+        </div>
+      </div>
+      {error && (
+        <p className="border-t border-border bg-red-50 px-5 py-2 text-xs text-red-700">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

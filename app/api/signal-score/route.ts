@@ -21,9 +21,13 @@ interface RunLog {
   steps: string[];
   outcome: "enqueued" | "rate_limited" | "fetch_failed" | "error";
   reportId?: string;
+  leadId?: string;
   errorDetail?: string;
   durationMs: number;
 }
+
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://dreamfree.co.uk";
 
 async function sendRunLogEmail(log: RunLog) {
   const apiKey = process.env.RESEND_API_KEY;
@@ -57,12 +61,14 @@ async function sendRunLogEmail(log: RunLog) {
         html: `
           <div style="font-family:-apple-system,sans-serif;max-width:600px;">
             <h2 style="margin:0 0 16px;">Signal Score Run Log (request phase)</h2>
+            ${log.outcome === "rate_limited" && log.leadId ? `<div style="margin:0 0 16px;padding:14px;background:#fff8e7;border-left:4px solid #e6a817;border-radius:4px;"><p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#8a6300;">User hit their rate limit (3/3 reports used).</p><p style="margin:0;font-size:13px;color:#5a4200;">Open their lead in the dashboard to reset their limit and re-run a fresh report on their behalf.</p><p style="margin:10px 0 0;"><a href="${SITE_URL}/dashboard/leads/${log.leadId}" style="display:inline-block;background:#0d7377;color:#fff;padding:8px 16px;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600;">Open lead in dashboard →</a></p></div>` : ""}
             <p style="font-size:13px;color:#666;margin:0 0 12px;">LLM analysis runs asynchronously in Convex — see Convex logs for that phase.</p>
             <table style="border-collapse:collapse;width:100%;font-size:14px;">
               <tr><td style="padding:6px 12px 6px 0;color:#888;white-space:nowrap;">Time</td><td style="padding:6px 0;">${log.timestamp}</td></tr>
               <tr><td style="padding:6px 12px 6px 0;color:#888;white-space:nowrap;">Duration</td><td style="padding:6px 0;">${(log.durationMs / 1000).toFixed(1)}s</td></tr>
               <tr><td style="padding:6px 12px 6px 0;color:#888;white-space:nowrap;">Outcome</td><td style="padding:6px 0;"><span style="background:${outcomeColour};color:#fff;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;">${log.outcome}</span></td></tr>
               ${log.reportId ? `<tr><td style="padding:6px 12px 6px 0;color:#888;">Report ID</td><td style="padding:6px 0;font-family:monospace;font-size:12px;">${log.reportId}</td></tr>` : ""}
+              ${log.leadId ? `<tr><td style="padding:6px 12px 6px 0;color:#888;">Lead</td><td style="padding:6px 0;"><a href="${SITE_URL}/dashboard/leads/${log.leadId}" style="color:#0d7377;font-weight:600;">View &amp; manage in dashboard →</a></td></tr>` : ""}
               <tr><td style="padding:6px 12px 6px 0;color:#888;">URL</td><td style="padding:6px 0;"><a href="${log.url}">${log.url}</a></td></tr>
               <tr><td style="padding:6px 12px 6px 0;color:#888;">Name</td><td style="padding:6px 0;">${log.firstName}</td></tr>
               <tr><td style="padding:6px 12px 6px 0;color:#888;">Email</td><td style="padding:6px 0;">${log.email}</td></tr>
@@ -169,6 +175,7 @@ export async function POST(req: NextRequest) {
       ...logBase,
       steps,
       outcome: "rate_limited",
+      leadId: leadId as string,
       durationMs: Date.now() - startTime,
     });
 
@@ -220,6 +227,7 @@ export async function POST(req: NextRequest) {
       ...logBase,
       steps,
       outcome: "fetch_failed",
+      leadId: leadId as string,
       errorDetail: err instanceof Error ? err.message : String(err),
       durationMs: Date.now() - startTime,
     });
@@ -251,6 +259,7 @@ export async function POST(req: NextRequest) {
       ...logBase,
       steps,
       outcome: "fetch_failed",
+      leadId: leadId as string,
       errorDetail: `Only ${strippedContent.length} chars of content extracted`,
       durationMs: Date.now() - startTime,
     });
@@ -287,6 +296,7 @@ export async function POST(req: NextRequest) {
     steps,
     outcome: "enqueued",
     reportId: reportId as string,
+    leadId: leadId as string,
     durationMs: Date.now() - startTime,
   });
 

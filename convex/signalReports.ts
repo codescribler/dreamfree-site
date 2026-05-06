@@ -216,6 +216,30 @@ export const getByIdInternal = internalQuery({
   },
 });
 
+/**
+ * Admin: delete every rate_limited report for a lead. Used when re-running a
+ * report on their behalf to bring their `countUses` back below the cap.
+ * Returns the number of rows removed.
+ */
+export const clearRateLimitedForLead = mutation({
+  args: { leadId: v.id("leads") },
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query("signalReports")
+      .withIndex("by_leadId", (q) => q.eq("leadId", args.leadId))
+      .collect();
+
+    let removed = 0;
+    for (const row of rows) {
+      if (row.status === "rate_limited") {
+        await ctx.db.delete(row._id);
+        removed += 1;
+      }
+    }
+    return removed;
+  },
+});
+
 /** Save a failed or rate-limited report (minimal data). */
 export const saveFailedReport = mutation({
   args: {
