@@ -2,9 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { useAnonymousId } from "./useAnonymousId";
+import { useTrackEvent } from "./useTrackEvent";
 
 const SCROLL_THRESHOLDS = [25, 50, 75, 100];
 
@@ -14,7 +13,7 @@ const SCROLL_THRESHOLDS = [25, 50, 75, 100];
  */
 export function useTracking() {
   const pathname = usePathname();
-  const track = useMutation(api.events.track);
+  const track = useTrackEvent();
   const { anonymousId, sessionId } = useAnonymousId();
   const reportedThresholds = useRef(new Set<number>());
 

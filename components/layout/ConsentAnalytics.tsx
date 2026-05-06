@@ -5,12 +5,16 @@ import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { getCookieConsent } from "./CookieNotice";
 import { SITE } from "@/lib/constants";
+import { isLocalDev } from "@/lib/is-local-dev";
 
 export function ConsentAnalytics() {
   const [consented, setConsented] = useState(false);
   const [optedOut, setOptedOut] = useState(true);
+  const [local, setLocal] = useState(false);
 
   useEffect(() => {
+    setLocal(isLocalDev());
+
     const params = new URLSearchParams(window.location.search);
     let paramsChanged = false;
     if (params.has("no-track")) {
@@ -35,7 +39,7 @@ export function ConsentAnalytics() {
     setConsented(getCookieConsent() === "all");
   }, []);
 
-  if (optedOut || !consented) return null;
+  if (local || optedOut || !consented) return null;
 
   return (
     <>

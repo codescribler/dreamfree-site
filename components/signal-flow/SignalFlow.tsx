@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { useAnonymousId } from "@/hooks/useAnonymousId";
+import { useTrackEvent } from "@/hooks/useTrackEvent";
 import { SITE } from "@/lib/constants";
 
 type Step = 1 | 2 | 3 | "analyse" | "limit" | "error" | "sent";
@@ -109,7 +108,7 @@ export function SignalFlow() {
   const [timedOut, setTimedOut] = useState(false);
 
   const router = useRouter();
-  const trackEvent = useMutation(api.events.track);
+  const trackEvent = useTrackEvent();
   const { anonymousId, sessionId } = useAnonymousId();
 
   const dialogRef = useRef<HTMLDivElement>(null);
