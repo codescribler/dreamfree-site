@@ -7,6 +7,8 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { EnrollmentHeader } from "./EnrollmentHeader";
 import { ActionRow } from "./ActionRow";
+import { DraftsTimeline } from "./DraftsTimeline";
+import { VerificationFlags } from "./VerificationFlags";
 
 export default function EnrollmentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -51,10 +53,8 @@ export default function EnrollmentDetailPage() {
 
       <ActionRow enrollment={enrollment} />
 
-      {/* Drafts timeline — built in Task 12 */}
-      <p className="text-sm text-muted">
-        {drafts.length} drafts. Timeline view ships in Task 12.
-      </p>
+      <VerificationFlags flags={enrollment.verificationFlags} />
+      <DraftsTimeline drafts={drafts} />
     </div>
   );
 }
