@@ -1,4 +1,5 @@
-import { internalMutation } from "./_generated/server";
+import { v } from "convex/values";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { ROLES, DEFAULT_ROLE_GAPS_MS, VOICE_SPEC_STUB_BODY, } from "../lib/email-campaigns/roles";
 const SKELETON_BRIEFS = {
     orientation: {
@@ -125,5 +126,65 @@ export const seed = internalMutation({
         });
         console.log(`emailCampaigns:seed — inserted config + sequence ${sequenceId} + ${ROLES.length} briefs + voice stub`);
         return { seeded: true, sequenceId };
+    },
+});
+export const getCurrentVoiceSpec = query({
+    args: {},
+    handler: async (ctx) => {
+        const current = await ctx.db
+            .query("emailVoiceSpec")
+            .withIndex("by_isCurrent", (q) => q.eq("isCurrent", true))
+            .first();
+        return current;
+    },
+});
+export const listVoiceSpecVersions = query({
+    args: {},
+    handler: async (ctx) => {
+        return await ctx.db
+            .query("emailVoiceSpec")
+            .withIndex("by_version")
+            .order("desc")
+            .collect();
+    },
+});
+export const saveVoiceSpec = mutation({
+    args: {
+        body: v.string(),
+        editorEmail: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const previous = await ctx.db
+            .query("emailVoiceSpec")
+            .withIndex("by_isCurrent", (q) => q.eq("isCurrent", true))
+            .first();
+        if (previous) {
+            await ctx.db.patch(previous._id, { isCurrent: false });
+        }
+        const newVersion = (previous?.version ?? 0) + 1;
+        const newId = await ctx.db.insert("emailVoiceSpec", {
+            body: args.body,
+            version: newVersion,
+            isCurrent: true,
+            createdAt: Date.now(),
+            createdBy: args.editorEmail,
+        });
+        // Mark drafts in pending_approval/approved enrollments as stale.
+        const allEnrollments = await ctx.db.query("emailEnrollments").collect();
+        const targets = allEnrollments.filter((e) => e.status === "pending_approval" || e.status === "approved");
+        for (const enrollment of targets) {
+            const drafts = await ctx.db
+                .query("emailDrafts")
+                .withIndex("by_enrollment", (q) => q.eq("enrollmentId", enrollment._id))
+                .collect();
+            for (const draft of drafts) {
+                if (draft.status === "sent")
+                    continue;
+                if (draft.voiceVersionUsed < newVersion && !draft.isStale) {
+                    await ctx.db.patch(draft._id, { isStale: true });
+                }
+            }
+        }
+        return { newId, version: newVersion };
     },
 });
