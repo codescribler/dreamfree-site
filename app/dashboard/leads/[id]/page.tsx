@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "convex/react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -224,7 +224,6 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 function ReportRow({ report }: { report: Doc<"signalReports"> }) {
-  const router = useRouter();
   const [isReRunning, setIsReRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -249,7 +248,10 @@ function ReportRow({ report }: { report: Doc<"signalReports"> }) {
       if (!res.ok) {
         throw new Error(data.message || data.error || `HTTP ${res.status}`);
       }
-      router.push(`/report/${data.newReportId}`);
+      // Hard navigation to bypass the Next.js router cache — the new
+      // pending report row was inserted moments ago and a soft push can
+      // occasionally render against stale "not found" cache.
+      window.location.href = `/report/${data.newReportId}`;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Re-run failed");
       setIsReRunning(false);

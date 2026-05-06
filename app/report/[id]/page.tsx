@@ -22,6 +22,10 @@ import { ReportPending } from "@/components/report/ReportPending";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
+// Always render fresh — the report row may have just been inserted by the
+// rerun endpoint or by /api/signal-score, and any stale 404/cached body would
+// surface as a hard "not found" page even though the data now exists.
+export const dynamic = "force-dynamic";
 
 const ELEMENT_NAMES: Record<string, string> = {
   character: "Character (The Hero)",
