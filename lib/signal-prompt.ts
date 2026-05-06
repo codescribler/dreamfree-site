@@ -8,8 +8,8 @@
  * Reference: docs/superpowers/specs/2026-04-03-signal-score-grader-design.md
  */
 
-export const OPENROUTER_MODEL_PRIMARY = "qwen/qwen3.6-plus";
-export const OPENROUTER_MODEL_FALLBACK = "google/gemini-2.0-flash-001";
+export const OPENROUTER_MODEL_PRIMARY = "google/gemini-flash-latest";
+export const OPENROUTER_MODEL_FALLBACK = "qwen/qwen3.6-plus";
 
 export function buildSignalPrompt(
   htmlContent: string,
