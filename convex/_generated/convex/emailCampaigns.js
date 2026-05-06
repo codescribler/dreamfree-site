@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { ROLES, DEFAULT_ROLE_GAPS_MS, VOICE_SPEC_STUB_BODY, } from "../lib/email-campaigns/roles";
 const SKELETON_BRIEFS = {
     orientation: {
@@ -743,5 +744,77 @@ export const suppressEmail = mutation({
             }
         }
         return { alreadySuppressed: false };
+    },
+});
+// ===== Regeneration =====
+export const prepareRegenerationFromRole = internalMutation({
+    args: {
+        enrollmentId: v.id("emailEnrollments"),
+        fromOrder: v.number(),
+    },
+    handler: async (ctx, args) => {
+        const enrollment = await ctx.db.get(args.enrollmentId);
+        if (!enrollment)
+            throw new Error("Enrollment not found");
+        if (args.fromOrder < 0 || args.fromOrder >= ROLES.length) {
+            throw new Error(`fromOrder must be 0..${ROLES.length - 1}, got ${args.fromOrder}`);
+        }
+        // Refuse to regenerate any draft that has already been sent.
+        const drafts = await ctx.db
+            .query("emailDrafts")
+            .withIndex("by_enrollment", (q) => q.eq("enrollmentId", args.enrollmentId))
+            .collect();
+        const sentBeyond = drafts.find((d) => d.order >= args.fromOrder && d.status === "sent");
+        if (sentBeyond) {
+            throw new Error(`Cannot regenerate from order ${args.fromOrder}: draft ${sentBeyond.role} has already been sent`);
+        }
+        // Delete drafts at and beyond fromOrder.
+        for (const draft of drafts) {
+            if (draft.order >= args.fromOrder) {
+                await ctx.db.delete(draft._id);
+            }
+        }
+        // Reset loop ledger: drop entries opened at or after fromOrder; for kept
+        // entries, clear closedInRole if it was set by a draft we just deleted.
+        const ROLE_TO_INDEX = new Map(ROLES.map((r, i) => [r, i]));
+        const newLedger = enrollment.loopLedger
+            .filter((entry) => {
+            const openIdx = ROLE_TO_INDEX.get(entry.openedInRole);
+            return openIdx !== undefined && openIdx < args.fromOrder;
+        })
+            .map((entry) => {
+            const closeIdx = entry.closedInRole
+                ? ROLE_TO_INDEX.get(entry.closedInRole)
+                : undefined;
+            if (closeIdx !== undefined && closeIdx >= args.fromOrder) {
+                return { ...entry, closedInRole: undefined };
+            }
+            return entry;
+        });
+        await ctx.db.patch(args.enrollmentId, {
+            loopLedger: newLedger,
+            // Re-enter the generating state so the UI knows things are in flight.
+            status: "generating",
+            verificationFlags: undefined,
+            generationError: undefined,
+        });
+    },
+});
+export const requestRegeneration = mutation({
+    args: {
+        enrollmentId: v.id("emailEnrollments"),
+        fromOrder: v.number(),
+    },
+    handler: async (ctx, args) => {
+        const enrollment = await ctx.db.get(args.enrollmentId);
+        if (!enrollment)
+            throw new Error("Enrollment not found");
+        if (enrollment.status === "completed" ||
+            enrollment.status === "stopped" ||
+            enrollment.status === "unsubscribed" ||
+            enrollment.status === "generating") {
+            throw new Error(`Cannot regenerate from status=${enrollment.status}`);
+        }
+        await ctx.scheduler.runAfter(0, internal.emailCampaignsAction.regenerateFromRole, { enrollmentId: args.enrollmentId, fromOrder: args.fromOrder });
     },
 });

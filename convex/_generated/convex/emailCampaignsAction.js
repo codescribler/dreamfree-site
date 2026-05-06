@@ -306,3 +306,16 @@ Full summary: ${data.report.fullSummary}`;
         });
     },
 });
+export const regenerateFromRole = internalAction({
+    args: {
+        enrollmentId: v.id("emailEnrollments"),
+        fromOrder: v.number(),
+    },
+    handler: async (ctx, args) => {
+        await ctx.runMutation(internal.emailCampaigns.prepareRegenerationFromRole, { enrollmentId: args.enrollmentId, fromOrder: args.fromOrder });
+        // Schedule generateSequence to actually do the LLM work. Scheduling
+        // (rather than awaiting) keeps the public-facing mutation that triggered
+        // this action snappy from the UI.
+        await ctx.scheduler.runAfter(0, internal.emailCampaignsAction.generateSequence, { enrollmentId: args.enrollmentId });
+    },
+});
