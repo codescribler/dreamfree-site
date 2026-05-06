@@ -6,6 +6,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { SequenceTabs, type SequenceTab } from "./SequenceTabs";
 import { CadenceEditor } from "./CadenceEditor";
+import { BriefsEditor } from "./BriefsEditor";
 
 function SequencePageInner() {
   const params = useSearchParams();
@@ -34,7 +35,13 @@ function SequencePageInner() {
       )}
 
       {tab === "briefs" && (
-        <p className="text-sm text-muted">Briefs editor — see Task 9.</p>
+        sequence === undefined ? (
+          <p className="text-sm text-muted">Loading…</p>
+        ) : sequence === null ? (
+          <p className="text-sm text-red-700">No active sequence found.</p>
+        ) : (
+          <BriefsEditor sequenceId={sequence._id} />
+        )
       )}
 
       {tab === "voice" && (

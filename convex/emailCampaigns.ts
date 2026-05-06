@@ -1152,6 +1152,32 @@ export const getActiveSequence = query({
   },
 });
 
+export const countStaleDraftsByRole = query({
+  args: { sequenceId: v.id("emailSequences") },
+  handler: async (ctx, args) => {
+    const all = await ctx.db.query("emailEnrollments").collect();
+    const targets = all.filter(
+      (e) =>
+        e.sequenceId === args.sequenceId &&
+        (e.status === "pending_approval" || e.status === "approved"),
+    );
+    const counts: Record<string, number> = {};
+    for (const role of ROLES) counts[role] = 0;
+    for (const enrollment of targets) {
+      const drafts = await ctx.db
+        .query("emailDrafts")
+        .withIndex("by_enrollment", (q) =>
+          q.eq("enrollmentId", enrollment._id),
+        )
+        .collect();
+      for (const d of drafts) {
+        if (d.isStale) counts[d.role] = (counts[d.role] ?? 0) + 1;
+      }
+    }
+    return counts;
+  },
+});
+
 export const listRecentSends = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
