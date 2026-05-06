@@ -51,18 +51,32 @@ async function callOpenRouter(
           { role: "user", content: userPrompt },
         ],
         temperature: 0.5,
+        response_format: { type: "json_object" },
       }),
     },
   );
 
   if (!res.ok) {
-    throw new Error(`OpenRouter HTTP ${res.status}`);
+    const text = await res.text().catch(() => "");
+    throw new Error(`OpenRouter HTTP ${res.status} ${res.statusText} ${text.slice(0, 300)}`);
   }
 
   const data = await res.json();
+
+  // OpenRouter sometimes returns 200 with an error body.
+  if (data.error) {
+    const message =
+      typeof data.error === "string"
+        ? data.error
+        : data.error.message || JSON.stringify(data.error);
+    throw new Error(`OpenRouter error: ${message}`);
+  }
+
   const content = data.choices?.[0]?.message?.content;
   if (typeof content !== "string" || content.length === 0) {
-    throw new Error("Empty response from OpenRouter");
+    throw new Error(
+      `Empty response from OpenRouter (finish_reason=${data.choices?.[0]?.finish_reason ?? "unknown"})`,
+    );
   }
   return content;
 }
@@ -124,6 +138,8 @@ export async function POST(req: NextRequest) {
       userPrompt,
     );
   } catch (primaryErr) {
+    const primaryMsg =
+      primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
     try {
       modelUsed = OPENROUTER_MODEL_FALLBACK;
       raw = await callOpenRouter(
@@ -132,11 +148,21 @@ export async function POST(req: NextRequest) {
         userPrompt,
       );
     } catch (fallbackErr) {
+      const fallbackMsg =
+        fallbackErr instanceof Error
+          ? fallbackErr.message
+          : String(fallbackErr);
       console.error("Insights generation failed", {
-        primary: primaryErr,
-        fallback: fallbackErr,
+        primary: primaryMsg,
+        fallback: fallbackMsg,
       });
-      return NextResponse.json({ error: "llm_failed" }, { status: 502 });
+      return NextResponse.json(
+        {
+          error: "llm_failed",
+          detail: { primary: primaryMsg, fallback: fallbackMsg },
+        },
+        { status: 502 },
+      );
     }
   }
 
@@ -144,9 +170,14 @@ export async function POST(req: NextRequest) {
   try {
     parsed = parseInsightResponse(raw);
   } catch (err) {
-    console.error("Invalid LLM response", err, raw.slice(0, 500));
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("Invalid LLM response", msg, raw.slice(0, 500));
     return NextResponse.json(
-      { error: "invalid_llm_response" },
+      {
+        error: "invalid_llm_response",
+        detail: msg,
+        sample: raw.slice(0, 500),
+      },
       { status: 502 },
     );
   }

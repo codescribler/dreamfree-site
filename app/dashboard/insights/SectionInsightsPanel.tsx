@@ -50,7 +50,17 @@ export function SectionInsightsPanel({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `HTTP ${res.status}`);
+        const detail =
+          typeof data.detail === "string"
+            ? data.detail
+            : data.detail
+              ? JSON.stringify(data.detail)
+              : "";
+        throw new Error(
+          [data.error || `HTTP ${res.status}`, detail]
+            .filter(Boolean)
+            .join(" — "),
+        );
       }
       // Convex subscription will refresh the list automatically.
     } catch (err) {
@@ -122,7 +132,9 @@ export function SectionInsightsPanel({
           >
             {isGenerating ? "Generating…" : "Generate"}
           </button>
-          {error && <p className="text-xs text-red-600">{error}</p>}
+          {error && (
+            <p className="break-words text-xs text-red-600">{error}</p>
+          )}
           {latest && (
             <p className="text-xs text-muted">
               Last run: {formatDate(latest.createdAt)} · N={latest.reportCount}
