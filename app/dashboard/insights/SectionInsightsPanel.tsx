@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "convex/react";
+import ReactMarkdown from "react-markdown";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { SECTION_LABELS, SectionKey } from "@/lib/insights-prompt";
@@ -145,8 +146,8 @@ function InsightView({
   const body = (
     <>
       <p className="mb-2 text-xs text-muted">Model: {insight.modelUsed}</p>
-      <div className="prose prose-sm mb-4 max-w-none whitespace-pre-wrap text-charcoal">
-        {insight.summary}
+      <div className="mb-4 max-w-none text-sm leading-relaxed text-charcoal [&_blockquote]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-slate [&_h2]:mt-4 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-charcoal [&_h3]:mt-3 [&_h3]:mb-1 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-charcoal [&_li]:my-0.5 [&_p]:my-2 [&_strong]:font-semibold [&_strong]:text-charcoal [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5">
+        <ReactMarkdown>{insight.summary}</ReactMarkdown>
       </div>
       <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-teal-deep">
         Content ideas
