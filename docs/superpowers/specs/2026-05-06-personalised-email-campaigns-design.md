@@ -184,6 +184,7 @@ emailEnrollments: defineTable({
   pausedReason: v.optional(v.union(
     v.literal("replied"),
     v.literal("manual"),
+    v.literal("stale_cascade"), // sendDraft refused to send because later drafts are stale after a Daniel edit
   )),
   voiceVersionUsed: v.number(),     // snapshot at first generation
   // Live loop ledger maintained by each draft generation.
@@ -458,8 +459,8 @@ Every send must pass through this action. Order matters:
      - Return.
 4. If draft.editedByDaniel === true and any later draft has isStale === true:
      - Mark draft status: skipped_terminal.
-     - Set enrollment.status = paused, pausedReason = manual, with a flag "stale-cascade-block".
-     - Return. (Belt-and-braces — UI surfaces this loudly.)
+     - Set enrollment.status = paused, pausedReason = stale_cascade.
+     - Return. (Belt-and-braces — UI surfaces this loudly: the per-enrollment view shows a banner "Sending paused — you edited a draft and the later drafts haven't been regenerated. Click Regenerate later drafts to fix, then Resume.")
 5. If lead's email is in emailSuppressions:
      - Mark draft status: skipped_suppressed.
      - Set enrollment.status = unsubscribed.
@@ -478,7 +479,9 @@ Every send must pass through this action. Order matters:
      - If draft.role === "offer":
          - enrollment.status = completed, completedAt = now.
        else:
-         - Compute next draft's scheduledFor = clampToBusinessHours(now + nextRoleGap).
+         - Look up the next draft (order = thisDraft.order + 1).
+         - Compute scheduledFor = clampToBusinessHours(now + sequence.roleGaps[nextDraft.order]).
+           (roleGaps[N] is the gap to wait *before* sending role N, measured from the previous role's send.)
          - ctx.scheduler.runAt(...) for the next draft.
          - Update next draft: status: scheduled, scheduledFor, scheduledFunctionId.
    On failure:
