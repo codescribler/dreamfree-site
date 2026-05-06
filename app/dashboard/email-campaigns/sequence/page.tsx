@@ -7,6 +7,7 @@ import { api } from "@/convex/_generated/api";
 import { SequenceTabs, type SequenceTab } from "./SequenceTabs";
 import { CadenceEditor } from "./CadenceEditor";
 import { BriefsEditor } from "./BriefsEditor";
+import { VoiceEditor } from "./VoiceEditor";
 
 function SequencePageInner() {
   const params = useSearchParams();
@@ -44,9 +45,7 @@ function SequencePageInner() {
         )
       )}
 
-      {tab === "voice" && (
-        <p className="text-sm text-muted">Voice spec editor — see Task 10.</p>
-      )}
+      {tab === "voice" && <VoiceEditor />}
     </div>
   );
 }
