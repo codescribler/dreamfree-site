@@ -924,6 +924,15 @@ export const listActive = query({
         }));
     },
 });
+export const getActiveSequence = query({
+    args: {},
+    handler: async (ctx) => {
+        return await ctx.db
+            .query("emailSequences")
+            .withIndex("by_trigger", (q) => q.eq("trigger", "signal_report_success"))
+            .first();
+    },
+});
 export const listRecentSends = query({
     args: { limit: v.optional(v.number()) },
     handler: async (ctx, args) => {
