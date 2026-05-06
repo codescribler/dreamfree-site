@@ -199,6 +199,30 @@ export const runReportGeneration = internalAction({
       }
     });
 
+    // Attempt to enrol the lead in the email campaign sequence (post-report).
+    // Failures here must not affect the report itself — log only.
+    try {
+      const enrollmentId = await ctx.runMutation(
+        internal.emailCampaigns.tryEnrolFromReport,
+        { reportId: args.reportId },
+      );
+      if (enrollmentId) {
+        await ctx.scheduler.runAfter(
+          0,
+          internal.emailCampaignsAction.generateSequence,
+          { enrollmentId },
+        );
+        console.log(
+          `Email campaign enrolment scheduled for report ${args.reportId} → enrollment ${enrollmentId}`,
+        );
+      }
+    } catch (err) {
+      console.error(
+        `Email campaign enrolment failed for report ${args.reportId}:`,
+        err,
+      );
+    }
+
     console.log(
       `runReportGeneration complete: reportId=${args.reportId} score=${overallScore} model=${modelUsed}`,
     );
