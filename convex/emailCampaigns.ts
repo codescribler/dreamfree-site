@@ -699,3 +699,220 @@ export const getCampaignConfig = query({
     return await ctx.db.query("campaignConfig").first();
   },
 });
+
+// ===== Config mutations (used by the overview page kill switch and sequence editor) =====
+
+export const setKillSwitch = mutation({
+  args: {
+    on: v.boolean(),
+    note: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const config = await ctx.db.query("campaignConfig").first();
+    if (!config) {
+      throw new Error("campaignConfig row missing — run emailCampaigns:seed first");
+    }
+    await ctx.db.patch(config._id, {
+      // globalKillSwitch true = sending OFF, false = sending ON
+      globalKillSwitch: !args.on,
+      killSwitchNote: args.note,
+      killSwitchUpdatedAt: Date.now(),
+    });
+  },
+});
+
+export const setRoleGaps = mutation({
+  args: {
+    sequenceId: v.id("emailSequences"),
+    roleGaps: v.array(v.number()),
+    orientationRespectsBusinessHours: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const sequence = await ctx.db.get(args.sequenceId);
+    if (!sequence) throw new Error(`Sequence ${args.sequenceId} not found`);
+    if (args.roleGaps.length !== ROLES.length) {
+      throw new Error(
+        `roleGaps must have ${ROLES.length} entries, got ${args.roleGaps.length}`,
+      );
+    }
+    if (args.roleGaps.some((g) => g < 0 || !Number.isFinite(g))) {
+      throw new Error("roleGaps must all be finite non-negative numbers");
+    }
+    await ctx.db.patch(args.sequenceId, {
+      roleGaps: args.roleGaps,
+      orientationRespectsBusinessHours:
+        args.orientationRespectsBusinessHours ??
+        sequence.orientationRespectsBusinessHours,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// ===== Enrollment status mutations =====
+
+export const approveEnrollment = mutation({
+  args: { enrollmentId: v.id("emailEnrollments") },
+  handler: async (ctx, args) => {
+    const enrollment = await ctx.db.get(args.enrollmentId);
+    if (!enrollment) throw new Error("Enrollment not found");
+    if (enrollment.status !== "pending_approval") {
+      throw new Error(
+        `Cannot approve from status=${enrollment.status} (must be pending_approval)`,
+      );
+    }
+    await ctx.db.patch(args.enrollmentId, {
+      status: "approved",
+      approvedAt: Date.now(),
+    });
+    // NB: scheduling of the orientation send happens in Plan 3.
+  },
+});
+
+export const pauseEnrollment = mutation({
+  args: {
+    enrollmentId: v.id("emailEnrollments"),
+    reason: v.union(
+      v.literal("replied"),
+      v.literal("manual"),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const enrollment = await ctx.db.get(args.enrollmentId);
+    if (!enrollment) throw new Error("Enrollment not found");
+    if (enrollment.status !== "approved") {
+      throw new Error(
+        `Cannot pause from status=${enrollment.status} (must be approved)`,
+      );
+    }
+    await ctx.db.patch(args.enrollmentId, {
+      status: "paused",
+      pausedReason: args.reason,
+      pausedAt: Date.now(),
+    });
+  },
+});
+
+export const resumeEnrollment = mutation({
+  args: { enrollmentId: v.id("emailEnrollments") },
+  handler: async (ctx, args) => {
+    const enrollment = await ctx.db.get(args.enrollmentId);
+    if (!enrollment) throw new Error("Enrollment not found");
+    if (enrollment.status !== "paused") {
+      throw new Error(
+        `Cannot resume from status=${enrollment.status} (must be paused)`,
+      );
+    }
+    await ctx.db.patch(args.enrollmentId, {
+      status: "approved",
+      pausedReason: undefined,
+      pausedAt: undefined,
+    });
+    // NB: re-scheduling of the next pending draft happens in Plan 3.
+  },
+});
+
+export const stopEnrollment = mutation({
+  args: { enrollmentId: v.id("emailEnrollments") },
+  handler: async (ctx, args) => {
+    const enrollment = await ctx.db.get(args.enrollmentId);
+    if (!enrollment) throw new Error("Enrollment not found");
+    if (
+      enrollment.status === "completed" ||
+      enrollment.status === "stopped" ||
+      enrollment.status === "unsubscribed"
+    ) {
+      throw new Error(
+        `Cannot stop from status=${enrollment.status} (already terminal)`,
+      );
+    }
+    await ctx.db.patch(args.enrollmentId, {
+      status: "stopped",
+      stoppedAt: Date.now(),
+    });
+  },
+});
+
+// ===== Draft editing =====
+
+export const saveDraftEdit = mutation({
+  args: {
+    draftId: v.id("emailDrafts"),
+    subject: v.string(),
+    bodyHtml: v.string(),
+    bodyText: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const draft = await ctx.db.get(args.draftId);
+    if (!draft) throw new Error("Draft not found");
+    if (draft.status === "sent") {
+      throw new Error("Cannot edit a sent draft");
+    }
+
+    await ctx.db.patch(args.draftId, {
+      subject: args.subject,
+      bodyHtml: args.bodyHtml,
+      bodyText: args.bodyText,
+      editedByDaniel: true,
+      // Edits clear staleness on this draft — the user has explicitly chosen
+      // this content. Later drafts get marked stale below.
+      isStale: false,
+    });
+
+    // Cascade: mark all later drafts in the same enrollment as stale.
+    const laterDrafts = await ctx.db
+      .query("emailDrafts")
+      .withIndex("by_enrollment", (q) =>
+        q.eq("enrollmentId", draft.enrollmentId),
+      )
+      .collect();
+    for (const later of laterDrafts) {
+      if (later.order <= draft.order) continue;
+      if (later.status === "sent") continue;
+      if (!later.isStale) {
+        await ctx.db.patch(later._id, { isStale: true });
+      }
+    }
+  },
+});
+
+// ===== Manual suppression (used by the lead detail page) =====
+
+export const suppressEmail = mutation({
+  args: {
+    email: v.string(),
+    note: v.optional(v.string()),
+    enrollmentId: v.optional(v.id("emailEnrollments")),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("emailSuppressions")
+      .withIndex("by_email", (q) => q.eq("email", args.email))
+      .first();
+    if (existing) {
+      // Idempotent — already suppressed.
+      return { alreadySuppressed: true };
+    }
+    await ctx.db.insert("emailSuppressions", {
+      email: args.email,
+      reason: "manual",
+      suppressedAt: Date.now(),
+      enrollmentId: args.enrollmentId,
+      note: args.note,
+    });
+    // If a current enrollment is provided and active, terminate it.
+    if (args.enrollmentId) {
+      const enrollment = await ctx.db.get(args.enrollmentId);
+      if (
+        enrollment &&
+        enrollment.status !== "completed" &&
+        enrollment.status !== "stopped" &&
+        enrollment.status !== "unsubscribed"
+      ) {
+        await ctx.db.patch(args.enrollmentId, {
+          status: "unsubscribed",
+        });
+      }
+    }
+    return { alreadySuppressed: false };
+  },
+});
