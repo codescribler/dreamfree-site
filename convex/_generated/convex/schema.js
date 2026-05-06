@@ -237,45 +237,132 @@ export default defineSchema({
     })
         .index("by_leadId", ["leadId"])
         .index("by_tagId", ["tagId"]),
+    // ── EMAIL CAMPAIGNS ──
+    campaignConfig: defineTable({
+        globalKillSwitch: v.boolean(),
+        killSwitchNote: v.optional(v.string()),
+        killSwitchUpdatedAt: v.number(),
+        fromAddress: v.string(),
+        defaultLlmModel: v.string(),
+        businessHoursEnabled: v.boolean(),
+        businessHoursStartUtcMinutes: v.number(),
+        businessHoursEndUtcMinutes: v.number(),
+        businessDays: v.array(v.number()),
+        unsubscribeBaseUrl: v.string(),
+    }),
+    emailVoiceSpec: defineTable({
+        body: v.string(),
+        version: v.number(),
+        isCurrent: v.boolean(),
+        createdAt: v.number(),
+        createdBy: v.string(),
+    })
+        .index("by_isCurrent", ["isCurrent"])
+        .index("by_version", ["version"]),
     emailSequences: defineTable({
         name: v.string(),
         description: v.optional(v.string()),
         trigger: v.string(),
         isActive: v.boolean(),
+        roleGaps: v.array(v.number()),
+        orientationRespectsBusinessHours: v.boolean(),
         createdAt: v.number(),
         updatedAt: v.number(),
     }).index("by_trigger", ["trigger"]),
-    emailSequenceSteps: defineTable({
+    emailRoleBriefs: defineTable({
         sequenceId: v.id("emailSequences"),
+        role: v.union(v.literal("orientation"), v.literal("backstory"), v.literal("wall"), v.literal("epiphany"), v.literal("application"), v.literal("hidden_benefits"), v.literal("offer")),
         order: v.number(),
-        subject: v.string(),
-        body: v.string(),
-        delayMs: v.number(),
+        purpose: v.string(),
+        requiredBeats: v.string(),
+        loopsToOpen: v.string(),
+        loopsToClose: v.string(),
+        tone: v.string(),
+        lengthGuide: v.string(),
+        workedExample: v.string(),
+        version: v.number(),
+        isCurrent: v.boolean(),
         createdAt: v.number(),
-    }).index("by_sequenceId", ["sequenceId"]),
+        createdBy: v.string(),
+    })
+        .index("by_sequence_role_isCurrent", ["sequenceId", "role", "isCurrent"])
+        .index("by_sequence_role_version", ["sequenceId", "role", "version"]),
     emailEnrollments: defineTable({
         leadId: v.id("leads"),
         sequenceId: v.id("emailSequences"),
-        currentStep: v.number(),
-        status: v.union(v.literal("active"), v.literal("completed"), v.literal("cancelled")),
+        reportId: v.id("signalReports"),
+        status: v.union(v.literal("generating"), v.literal("generation_failed"), v.literal("pending_approval"), v.literal("approved"), v.literal("paused"), v.literal("stopped"), v.literal("completed"), v.literal("unsubscribed")),
+        pausedReason: v.optional(v.union(v.literal("replied"), v.literal("manual"), v.literal("stale_cascade"))),
+        voiceVersionUsed: v.number(),
+        loopLedger: v.array(v.object({
+            id: v.string(),
+            openedInRole: v.string(),
+            closedInRole: v.optional(v.string()),
+            description: v.string(),
+        })),
+        verificationFlags: v.optional(v.object({
+            voice: v.array(v.object({ role: v.string(), note: v.string() })),
+            loops: v.array(v.object({ role: v.string(), note: v.string() })),
+            cheese: v.array(v.object({ role: v.string(), note: v.string() })),
+            factual: v.array(v.object({ role: v.string(), note: v.string() })),
+        })),
+        generationError: v.optional(v.string()),
         enrolledAt: v.number(),
-        lastStepAt: v.optional(v.number()),
-        nextStepScheduledAt: v.optional(v.number()),
+        approvedAt: v.optional(v.number()),
+        pausedAt: v.optional(v.number()),
+        stoppedAt: v.optional(v.number()),
+        completedAt: v.optional(v.number()),
     })
         .index("by_leadId", ["leadId"])
         .index("by_sequenceId", ["sequenceId"])
-        .index("by_status", ["status"]),
+        .index("by_status", ["status"])
+        .index("by_reportId", ["reportId"]),
+    emailDrafts: defineTable({
+        enrollmentId: v.id("emailEnrollments"),
+        role: v.union(v.literal("orientation"), v.literal("backstory"), v.literal("wall"), v.literal("epiphany"), v.literal("application"), v.literal("hidden_benefits"), v.literal("offer")),
+        order: v.number(),
+        subject: v.string(),
+        bodyHtml: v.string(),
+        bodyText: v.string(),
+        scheduledFor: v.optional(v.number()),
+        scheduledFunctionId: v.optional(v.string()),
+        sentAt: v.optional(v.number()),
+        status: v.union(v.literal("draft"), v.literal("scheduled"), v.literal("sent"), v.literal("failed"), v.literal("skipped_terminal"), v.literal("skipped_suppressed")),
+        briefVersionUsed: v.number(),
+        voiceVersionUsed: v.number(),
+        loopsOpenedHere: v.array(v.string()),
+        loopsClosedHere: v.array(v.string()),
+        reportFindingsUsed: v.array(v.string()),
+        isStale: v.boolean(),
+        editedByDaniel: v.boolean(),
+        unsubscribeToken: v.string(),
+    })
+        .index("by_enrollment", ["enrollmentId"])
+        .index("by_status", ["status"])
+        .index("by_unsubscribeToken", ["unsubscribeToken"]),
     emailSends: defineTable({
-        enrollmentId: v.optional(v.id("emailEnrollments")),
+        enrollmentId: v.id("emailEnrollments"),
+        draftId: v.id("emailDrafts"),
         leadId: v.id("leads"),
         subject: v.string(),
         resendId: v.optional(v.string()),
-        status: v.union(v.literal("sent"), v.literal("delivered"), v.literal("opened"), v.literal("clicked"), v.literal("bounced"), v.literal("failed")),
+        status: v.union(v.literal("sent"), v.literal("delivered"), v.literal("opened"), v.literal("clicked"), v.literal("bounced"), v.literal("complained"), v.literal("failed")),
         openedAt: v.optional(v.number()),
         clickedAt: v.optional(v.number()),
+        clickedUrl: v.optional(v.string()),
+        bouncedAt: v.optional(v.number()),
+        unsubscribedAt: v.optional(v.number()),
         sentAt: v.number(),
     })
         .index("by_leadId", ["leadId"])
         .index("by_enrollmentId", ["enrollmentId"])
+        .index("by_draftId", ["draftId"])
         .index("by_resendId", ["resendId"]),
+    emailSuppressions: defineTable({
+        email: v.string(),
+        reason: v.union(v.literal("unsubscribed"), v.literal("bounced"), v.literal("complained"), v.literal("manual")),
+        suppressedAt: v.number(),
+        enrollmentId: v.optional(v.id("emailEnrollments")),
+        note: v.optional(v.string()),
+    }).index("by_email", ["email"]),
 });
