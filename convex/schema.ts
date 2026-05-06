@@ -146,6 +146,7 @@ export default defineSchema({
     strengths: v.array(v.string()),
     fullSummary: v.string(),
     status: v.union(
+      v.literal("pending"),
       v.literal("success"),
       v.literal("fetch_failed"),
       v.literal("llm_failed"),
@@ -183,6 +184,13 @@ export default defineSchema({
       v.literal("stakes"),
       v.literal("transformation"),
     ),
+    status: v.optional(
+      v.union(
+        v.literal("pending"),
+        v.literal("complete"),
+        v.literal("failed"),
+      ),
+    ),
     reportCount: v.number(),
     reportsAnalysed: v.array(v.id("signalReports")),
     summary: v.string(),
@@ -194,7 +202,9 @@ export default defineSchema({
       }),
     ),
     modelUsed: v.string(),
+    errorMessage: v.optional(v.string()),
     createdAt: v.number(),
+    completedAt: v.optional(v.number()),
   }).index("by_section_and_createdAt", ["section", "createdAt"]),
 
   contentPlans: defineTable({

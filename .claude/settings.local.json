@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm app/api/report/\\\\[id\\\\]/checkout/route.ts)",
+      "Bash(rm app/api/webhooks/stripe/route.ts)",
+      "Bash(rm components/report/BuyPrompt.tsx)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(rm:*)",
+      "Bash(npx next:*)",
+      "Bash(npx tsc *)",
+      "Bash(npx convex *)"
+    ]
+  }
+}

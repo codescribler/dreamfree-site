@@ -130,7 +130,7 @@ export default defineSchema({
         quickWin: v.string(),
         strengths: v.array(v.string()),
         fullSummary: v.string(),
-        status: v.union(v.literal("success"), v.literal("fetch_failed"), v.literal("llm_failed"), v.literal("rate_limited")),
+        status: v.union(v.literal("pending"), v.literal("success"), v.literal("fetch_failed"), v.literal("llm_failed"), v.literal("rate_limited")),
         accessLevel: v.union(v.literal("public"), v.literal("verified")),
         verifyCode: v.string(),
         verifyToken: v.string(),
@@ -150,6 +150,7 @@ export default defineSchema({
         .index("by_status", ["status"]),
     signalInsights: defineTable({
         section: v.union(v.literal("character"), v.literal("problem"), v.literal("guide"), v.literal("plan"), v.literal("cta"), v.literal("stakes"), v.literal("transformation")),
+        status: v.optional(v.union(v.literal("pending"), v.literal("complete"), v.literal("failed"))),
         reportCount: v.number(),
         reportsAnalysed: v.array(v.id("signalReports")),
         summary: v.string(),
@@ -159,7 +160,9 @@ export default defineSchema({
             format: v.optional(v.string()),
         })),
         modelUsed: v.string(),
+        errorMessage: v.optional(v.string()),
         createdAt: v.number(),
+        completedAt: v.optional(v.number()),
     }).index("by_section_and_createdAt", ["section", "createdAt"]),
     contentPlans: defineTable({
         leadId: v.id("leads"),

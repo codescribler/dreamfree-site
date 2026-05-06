@@ -213,7 +213,7 @@ export function SignalFlow() {
           anonymousId,
           sessionId,
           path: window.location.pathname,
-          properties: { url: url.trim(), score: data.overallScore },
+          properties: { url: url.trim(), reportId: data.reportId },
         });
       }
 

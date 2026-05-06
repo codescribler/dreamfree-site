@@ -14,7 +14,7 @@ interface SectionInsightsPanelProps {
 
 const MIN = 2;
 const MAX = 100;
-const DEFAULT_COUNT = 8;
+const DEFAULT_COUNT = 20;
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString("en-GB", {
@@ -89,9 +89,22 @@ export function SectionInsightsPanel({
             </p>
           ) : (
             <div className="space-y-4">
-              {latest && <InsightView insight={latest} expanded />}
+              {latest && (
+                <InsightView
+                  insight={latest}
+                  expanded
+                  onRetry={handleGenerate}
+                  isGenerating={isGenerating}
+                />
+              )}
               {older.map((i) => (
-                <InsightView key={i._id} insight={i} expanded={false} />
+                <InsightView
+                  key={i._id}
+                  insight={i}
+                  expanded={false}
+                  onRetry={handleGenerate}
+                  isGenerating={isGenerating}
+                />
               ))}
             </div>
           )}
@@ -121,8 +134,8 @@ export function SectionInsightsPanel({
             {reportsAvailable === 1 ? "" : "s"} available
           </p>
           <p className="text-[10px] leading-snug text-muted">
-            Server times out after 60s — keep N around 8–12 unless reports are
-            short.
+            Generation runs in the background — feel free to navigate away. The
+            panel updates live when it completes.
           </p>
           <button
             onClick={handleGenerate}
@@ -153,13 +166,48 @@ export function SectionInsightsPanel({
 function InsightView({
   insight,
   expanded,
+  onRetry,
+  isGenerating,
 }: {
   insight: Doc<"signalInsights">;
   expanded: boolean;
+  onRetry: () => void;
+  isGenerating: boolean;
 }) {
   const summaryLine = `${formatDate(insight.createdAt)} · N=${insight.reportCount}`;
+  // Legacy rows pre-status field are treated as complete.
+  const status = insight.status ?? "complete";
 
-  const body = (
+  const pendingBody = (
+    <div className="flex items-center gap-3 py-2 text-sm text-slate">
+      <span
+        aria-hidden
+        className="inline-block h-3 w-3 animate-pulse rounded-full bg-teal"
+      />
+      <span>Generating insight — this can take 30s–2min depending on N.</span>
+    </div>
+  );
+
+  const failedBody = (
+    <div className="space-y-2">
+      <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+        <p className="font-semibold">Generation failed</p>
+        <pre className="mt-1 whitespace-pre-wrap break-words font-mono text-[11px]">
+          {insight.errorMessage || "Unknown error"}
+        </pre>
+      </div>
+      <button
+        type="button"
+        onClick={onRetry}
+        disabled={isGenerating}
+        className="rounded-md border border-border bg-white px-3 py-1 text-xs font-medium text-charcoal hover:border-teal hover:text-teal disabled:opacity-50"
+      >
+        Retry with same N
+      </button>
+    </div>
+  );
+
+  const completeBody = (
     <>
       <p className="mb-2 text-xs text-muted">Model: {insight.modelUsed}</p>
       <div className="mb-4 max-w-none text-sm leading-relaxed text-charcoal [&_blockquote]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-slate [&_h2]:mt-4 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-bold [&_h2]:text-charcoal [&_h3]:mt-3 [&_h3]:mb-1 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-charcoal [&_li]:my-0.5 [&_p]:my-2 [&_strong]:font-semibold [&_strong]:text-charcoal [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5">
@@ -198,11 +246,26 @@ function InsightView({
     </>
   );
 
+  const body =
+    status === "pending"
+      ? pendingBody
+      : status === "failed"
+        ? failedBody
+        : completeBody;
+
+  const statusBadge =
+    status === "pending"
+      ? " · pending"
+      : status === "failed"
+        ? " · failed"
+        : "";
+
   if (expanded) {
     return (
       <div className="rounded-lg border border-border bg-white p-4">
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
           Latest · {summaryLine}
+          {statusBadge}
         </p>
         {body}
       </div>
@@ -213,6 +276,7 @@ function InsightView({
     <details className="group rounded-lg border border-border bg-white p-4">
       <summary className="cursor-pointer text-sm font-medium text-charcoal">
         {summaryLine}
+        {statusBadge}
       </summary>
       <div className="mt-3">{body}</div>
     </details>

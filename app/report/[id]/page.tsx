@@ -18,6 +18,7 @@ import { ReportCTA } from "@/components/report/ReportCTA";
 import { DemoRequestCTA } from "@/components/report/DemoRequestCTA";
 import { ShareForm } from "@/components/report/ShareForm";
 import { ReportActions } from "@/components/report/ReportActions";
+import { ReportPending } from "@/components/report/ReportPending";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
@@ -83,7 +84,17 @@ export default async function ReportPage({
     notFound();
   }
 
-  if (!data?.report || data.report.status !== "success") {
+  if (!data?.report) {
+    notFound();
+  }
+
+  // Pending: report exists but the LLM action hasn't completed yet.
+  // Render a live-updating loading screen.
+  if (data.report.status === "pending") {
+    return <ReportPending reportId={id} url={data.report.url} />;
+  }
+
+  if (data.report.status !== "success") {
     notFound();
   }
 

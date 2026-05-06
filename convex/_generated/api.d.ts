@@ -19,7 +19,9 @@ import type * as leads from "../leads.js";
 import type * as loginTokens from "../loginTokens.js";
 import type * as missionControl from "../missionControl.js";
 import type * as signalInsights from "../signalInsights.js";
+import type * as signalInsightsAction from "../signalInsightsAction.js";
 import type * as signalReports from "../signalReports.js";
+import type * as signalReportsAction from "../signalReportsAction.js";
 import type * as users from "../users.js";
 
 import type {
@@ -40,7 +42,9 @@ declare const fullApi: ApiFromModules<{
   loginTokens: typeof loginTokens;
   missionControl: typeof missionControl;
   signalInsights: typeof signalInsights;
+  signalInsightsAction: typeof signalInsightsAction;
   signalReports: typeof signalReports;
+  signalReportsAction: typeof signalReportsAction;
   users: typeof users;
 }>;
 

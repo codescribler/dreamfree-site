@@ -1,5 +1,11 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./_generated/server";
+import { internal } from "./_generated/api";
 
 const elementValidator = v.object({
   score: v.number(),
@@ -104,6 +110,109 @@ export const saveReport = mutation({
       accessLevel: "public",
       createdAt: Date.now(),
     });
+  },
+});
+
+/**
+ * Create a pending report and schedule the LLM action.
+ * Returns the new reportId immediately so the API route can redirect.
+ */
+export const enqueueReport = mutation({
+  args: {
+    leadId: v.id("leads"),
+    anonymousId: v.string(),
+    url: v.string(),
+    customerDescription: v.string(),
+    strippedContent: v.string(),
+    firstName: v.string(),
+    email: v.string(),
+    phone: v.optional(v.string()),
+    verifyCode: v.string(),
+    verifyToken: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const reportId = await ctx.db.insert("signalReports", {
+      leadId: args.leadId,
+      anonymousId: args.anonymousId,
+      url: args.url,
+      customerDescription: args.customerDescription,
+      overallScore: 0,
+      gruntTest: { pass: false, explanation: "" },
+      elements: EMPTY_ELEMENTS,
+      quickWin: "",
+      strengths: [],
+      fullSummary: "",
+      status: "pending",
+      accessLevel: "public",
+      verifyCode: args.verifyCode,
+      verifyToken: args.verifyToken,
+      createdAt: Date.now(),
+    });
+
+    await ctx.scheduler.runAfter(
+      0,
+      internal.signalReportsAction.runReportGeneration,
+      {
+        reportId,
+        strippedContent: args.strippedContent,
+        customerDescription: args.customerDescription,
+        firstName: args.firstName,
+        email: args.email,
+        phone: args.phone,
+        url: args.url,
+        anonymousId: args.anonymousId,
+        verifyCode: args.verifyCode,
+        verifyToken: args.verifyToken,
+      },
+    );
+
+    return reportId;
+  },
+});
+
+/** Patch a pending report with the full LLM result. */
+export const completeReport = internalMutation({
+  args: {
+    reportId: v.id("signalReports"),
+    overallScore: v.number(),
+    gruntTest: v.object({
+      pass: v.boolean(),
+      explanation: v.string(),
+    }),
+    elements: elementsValidator,
+    quickWin: v.string(),
+    strengths: v.array(v.string()),
+    fullSummary: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.reportId, {
+      status: "success",
+      overallScore: args.overallScore,
+      gruntTest: args.gruntTest,
+      elements: args.elements,
+      quickWin: args.quickWin,
+      strengths: args.strengths,
+      fullSummary: args.fullSummary,
+    });
+  },
+});
+
+/** Patch a pending report to a failure status. */
+export const failReport = internalMutation({
+  args: {
+    reportId: v.id("signalReports"),
+    status: v.union(v.literal("fetch_failed"), v.literal("llm_failed")),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.reportId, { status: args.status });
+  },
+});
+
+/** Internal lookup used by the action (avoids exposing more public surface). */
+export const getByIdInternal = internalQuery({
+  args: { reportId: v.id("signalReports") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.reportId);
   },
 });
 
