@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query, type QueryCtx } from "./_generated/server";
+import { mutation, query, internalQuery, type QueryCtx } from "./_generated/server";
 import { USE_CASES, type UseCase } from "../lib/ai/use-cases";
 import {
   OPENROUTER_MODEL_PRIMARY,
@@ -40,6 +40,16 @@ export async function resolveModels(
     fallback: OPENROUTER_MODEL_FALLBACK,
   };
 }
+
+export const resolveModelsInternal = internalQuery({
+  args: { useCase: v.string() },
+  handler: async (ctx, args) => {
+    if (!(USE_CASES as readonly string[]).includes(args.useCase)) {
+      throw new Error(`Unknown use-case: ${args.useCase}`);
+    }
+    return resolveModels(ctx, args.useCase as UseCase);
+  },
+});
 
 export const listConfig = query({
   args: {},
