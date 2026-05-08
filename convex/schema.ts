@@ -500,4 +500,43 @@ export default defineSchema({
     enrollmentId: v.optional(v.id("emailEnrollments")),
     note: v.optional(v.string()),
   }).index("by_email", ["email"]),
+
+  // ── ADMIN AI MODELS ──
+
+  aiModelConfig: defineTable({
+    useCase: v.string(),
+    primary: v.string(),
+    fallback: v.string(),
+    updatedAt: v.number(),
+    updatedBy: v.optional(v.string()),
+  }).index("by_useCase", ["useCase"]),
+
+  aiModelPricing: defineTable({
+    model: v.string(),
+    promptUsdPerMillion: v.number(),
+    completionUsdPerMillion: v.number(),
+    fetchedAt: v.number(),
+  }).index("by_model", ["model"]),
+
+  aiModelReplays: defineTable({
+    useCase: v.string(),
+    recordId: v.string(),
+    candidateModel: v.string(),
+    compareModel: v.optional(v.string()),
+    results: v.array(
+      v.object({
+        model: v.string(),
+        output: v.string(),
+        latencyMs: v.number(),
+        promptTokens: v.optional(v.number()),
+        completionTokens: v.optional(v.number()),
+        costGbp: v.optional(v.number()),
+        valid: v.boolean(),
+        validationError: v.optional(v.string()),
+        rawResponse: v.optional(v.any()),
+      }),
+    ),
+    runBy: v.string(),
+    runAt: v.number(),
+  }).index("by_runAt", ["runAt"]),
 });
