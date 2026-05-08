@@ -8,9 +8,13 @@
  * @module
  */
 
+import type * as aiModelPricing from "../aiModelPricing.js";
+import type * as aiModelReplay from "../aiModelReplay.js";
+import type * as aiModels from "../aiModels.js";
 import type * as apiKeys from "../apiKeys.js";
 import type * as callbackRequests from "../callbackRequests.js";
 import type * as contentPlans from "../contentPlans.js";
+import type * as crons from "../crons.js";
 import type * as demoRequests from "../demoRequests.js";
 import type * as emailCampaigns from "../emailCampaigns.js";
 import type * as emailCampaignsAction from "../emailCampaignsAction.js";
@@ -33,9 +37,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  aiModelPricing: typeof aiModelPricing;
+  aiModelReplay: typeof aiModelReplay;
+  aiModels: typeof aiModels;
   apiKeys: typeof apiKeys;
   callbackRequests: typeof callbackRequests;
   contentPlans: typeof contentPlans;
+  crons: typeof crons;
   demoRequests: typeof demoRequests;
   emailCampaigns: typeof emailCampaigns;
   emailCampaignsAction: typeof emailCampaignsAction;

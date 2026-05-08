@@ -45,3 +45,7 @@ next-env.d.ts
 /.clerk/
 
 .vercel
+
+# convex codegen JS mirrors (not used at runtime; regenerated on every codegen)
+convex/_generated/convex/
+convex/_generated/lib/
