@@ -51,6 +51,16 @@ export const resolveModelsInternal = internalQuery({
   },
 });
 
+export const resolveModelsPublic = query({
+  args: { useCase: v.string() },
+  handler: async (ctx, args) => {
+    if (!(USE_CASES as readonly string[]).includes(args.useCase)) {
+      throw new Error(`Unknown use-case: ${args.useCase}`);
+    }
+    return resolveModels(ctx, args.useCase as UseCase);
+  },
+});
+
 export const listConfig = query({
   args: {},
   handler: async (ctx) => {
