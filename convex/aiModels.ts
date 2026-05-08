@@ -132,3 +132,135 @@ export const clearConfig = mutation({
     }
   },
 });
+
+import type { Doc } from "./_generated/dataModel";
+
+interface ReplayableRecord {
+  id: string;
+  label: string;
+  subLabel?: string;
+  createdAt: number;
+}
+
+export const listReplayableRecords = query({
+  args: {
+    useCase: v.string(),
+    search: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 50;
+    const search = args.search?.trim().toLowerCase() ?? "";
+
+    if (args.useCase === "signal_reports") {
+      const reports = await ctx.db
+        .query("signalReports")
+        .order("desc")
+        .take(200);
+      const leadIds = Array.from(new Set(reports.map((r) => r.leadId)));
+      const leadMap = new Map<string, Doc<"leads"> | null>();
+      for (const lid of leadIds) {
+        leadMap.set(lid, await ctx.db.get(lid));
+      }
+      return reports
+        .filter((r) => r.status === "success")
+        .filter((r) => {
+          if (search.length === 0) return true;
+          const lead = leadMap.get(r.leadId);
+          const email = lead?.email?.toLowerCase() ?? "";
+          const url = r.url?.toLowerCase() ?? "";
+          return email.includes(search) || url.includes(search);
+        })
+        .slice(0, limit)
+        .map<ReplayableRecord>((r) => {
+          const lead = leadMap.get(r.leadId);
+          return {
+            id: r._id,
+            label: `${lead?.email ?? "unknown"} — ${r.url ?? "no url"}`,
+            subLabel: `score ${r.overallScore ?? "?"} · ${new Date(r._creationTime).toLocaleDateString("en-GB")}`,
+            createdAt: r._creationTime,
+          };
+        });
+    }
+
+    if (args.useCase === "signal_insights") {
+      const insights = await ctx.db
+        .query("signalInsights")
+        .order("desc")
+        .take(200);
+      return insights
+        .filter((i) => i.status === "complete")
+        .filter((i) =>
+          search.length === 0 ? true : i.section.toLowerCase().includes(search),
+        )
+        .slice(0, limit)
+        .map<ReplayableRecord>((i) => ({
+          id: i._id,
+          label: `${i.section} insight`,
+          subLabel: new Date(i._creationTime).toLocaleDateString("en-GB"),
+          createdAt: i._creationTime,
+        }));
+    }
+
+    if (args.useCase === "email_drafts") {
+      const drafts = await ctx.db.query("emailDrafts").order("desc").take(200);
+      const enrollmentIds = Array.from(new Set(drafts.map((d) => d.enrollmentId)));
+      const enrollmentMap = new Map<string, Doc<"emailEnrollments"> | null>();
+      for (const eid of enrollmentIds) {
+        enrollmentMap.set(eid, await ctx.db.get(eid));
+      }
+      const leadIds = Array.from(
+        new Set(
+          [...enrollmentMap.values()]
+            .filter((e): e is Doc<"emailEnrollments"> => e !== null)
+            .map((e) => e.leadId),
+        ),
+      );
+      const leadMap = new Map<string, Doc<"leads"> | null>();
+      for (const lid of leadIds) {
+        leadMap.set(lid, await ctx.db.get(lid));
+      }
+      return drafts
+        .map((d) => {
+          const enrollment = enrollmentMap.get(d.enrollmentId);
+          const lead = enrollment ? leadMap.get(enrollment.leadId) : null;
+          const email = lead?.email ?? "unknown";
+          if (
+            search.length > 0 &&
+            !email.toLowerCase().includes(search) &&
+            !d.role.toLowerCase().includes(search)
+          ) {
+            return null;
+          }
+          return {
+            id: d._id,
+            label: `${email} — role ${d.role}`,
+            subLabel: new Date(d._creationTime).toLocaleDateString("en-GB"),
+            createdAt: d._creationTime,
+          } as ReplayableRecord;
+        })
+        .filter((d): d is ReplayableRecord => d !== null)
+        .slice(0, limit);
+    }
+
+    if (args.useCase === "content_ideas") {
+      const plans = await ctx.db.query("contentPlans").order("desc").take(200);
+      return plans
+        .filter((p) => {
+          if (search.length === 0) return true;
+          const email = p.input.email?.toLowerCase() ?? "";
+          const desc = p.input.businessDescription?.toLowerCase() ?? "";
+          return email.includes(search) || desc.includes(search);
+        })
+        .slice(0, limit)
+        .map<ReplayableRecord>((p) => ({
+          id: p._id,
+          label: p.input.email || p.input.name || "unknown",
+          subLabel: p.input.businessDescription?.slice(0, 80) ?? "",
+          createdAt: p._creationTime,
+        }));
+    }
+
+    throw new Error(`listReplayableRecords: unsupported useCase ${args.useCase}`);
+  },
+});
