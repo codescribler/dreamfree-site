@@ -2547,13 +2547,30 @@ git commit -m "feat(admin-models): add replay page with side-by-side metrics + r
 
 This is a manual verification gate — do not skip it.
 
-- [ ] **Step 1: Full build passes**
+- [ ] **Step 1: Scoped lint + full build pass**
+
+The project has pre-existing lint errors on master in files this feature does not touch (`hooks/useAnonymousId.ts`, `app/dashboard/page.tsx`, `components/layout/ConsentAnalytics.tsx`, `components/layout/CookieNotice.tsx`, `app/free-demo/request/page.tsx`, plus an existing `any` in `app/api/content-ideas/route.ts`). Do **not** try to fix those — they are out of scope. Lint is scoped to paths this feature touched:
 
 ```bash
-npm run lint && npm run build
+npm run lint -- \
+  app/api/content-ideas/route.ts \
+  app/dashboard/DashboardNav.tsx \
+  app/dashboard/admin \
+  convex/aiModels.ts \
+  convex/aiModelPricing.ts \
+  convex/aiModelReplay.ts \
+  convex/crons.ts \
+  convex/emailCampaignsAction.ts \
+  convex/schema.ts \
+  convex/signalInsightsAction.ts \
+  convex/signalReportsAction.ts \
+  lib/ai \
+  scripts/check-cost.ts \
+  scripts/check-resolve-models.ts
+npm run build
 ```
 
-Expected: both succeed.
+Expected: scoped lint reports zero errors. Build succeeds. (`npm run build` runs the full type-check across the project, so it will catch any cross-file regressions even if scoped lint was narrow.)
 
 - [ ] **Step 2: Round-trip test on dev**
 
