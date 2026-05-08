@@ -10,4 +10,10 @@ crons.daily(
   internal.aiModelPricing.refreshPricing,
 );
 
+crons.weekly(
+  "cleanup old model replays",
+  { dayOfWeek: "sunday", hourUTC: 4, minuteUTC: 0 },
+  internal.aiModelReplay.cleanupOldReplays,
+);
+
 export default crons;

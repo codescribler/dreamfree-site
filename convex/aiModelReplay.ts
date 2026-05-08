@@ -2,6 +2,7 @@
 import { v } from "convex/values";
 import {
   action,
+  internalAction,
   internalMutation,
   internalQuery,
   query,
@@ -566,5 +567,32 @@ export const getReplay = query({
   args: { replayId: v.id("aiModelReplays") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.replayId);
+  },
+});
+
+export const deleteOldReplays = internalMutation({
+  args: { olderThanMs: v.number() },
+  handler: async (ctx, args) => {
+    const cutoff = Date.now() - args.olderThanMs;
+    const old = await ctx.db
+      .query("aiModelReplays")
+      .withIndex("by_runAt", (q) => q.lt("runAt", cutoff))
+      .collect();
+    for (const row of old) {
+      await ctx.db.delete(row._id);
+    }
+    console.log(
+      `deleteOldReplays: removed ${old.length} replays older than ${new Date(cutoff).toISOString()}`,
+    );
+  },
+});
+
+export const cleanupOldReplays = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+    await ctx.runMutation(internal.aiModelReplay.deleteOldReplays, {
+      olderThanMs: THIRTY_DAYS_MS,
+    });
   },
 });
