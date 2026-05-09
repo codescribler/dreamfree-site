@@ -8,6 +8,10 @@ import {
   USE_CASE_LABELS,
   type UseCase,
 } from "@/lib/ai/use-cases";
+import {
+  SignalReportPreview,
+  tryParseSignalReport,
+} from "./SignalReportPreview";
 
 interface ReplayResult {
   model: string;
@@ -29,6 +33,7 @@ export function ReplayClient({ adminEmail }: { adminEmail: string }) {
   const [compareModel, setCompareModel] = useState("");
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<ReplayResult[] | null>(null);
+  const [resultsUseCase, setResultsUseCase] = useState<UseCase>("signal_reports");
   const [error, setError] = useState<string | null>(null);
 
   const records = useQuery(api.aiModels.listReplayableRecords, {
@@ -64,6 +69,7 @@ export function ReplayClient({ adminEmail }: { adminEmail: string }) {
         runBy: adminEmail,
       });
       setResults(out.results as ReplayResult[]);
+      setResultsUseCase(useCase);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -171,7 +177,11 @@ export function ReplayClient({ adminEmail }: { adminEmail: string }) {
       {results && (
         <div className="grid gap-4 md:grid-cols-2">
           {results.map((r, i) => (
-            <ResultCard key={`${r.model}-${i}`} result={r} />
+            <ResultCard
+              key={`${r.model}-${i}`}
+              result={r}
+              useCase={resultsUseCase}
+            />
           ))}
         </div>
       )}
@@ -189,7 +199,10 @@ export function ReplayClient({ adminEmail }: { adminEmail: string }) {
                 key={rp._id}
                 type="button"
                 className="block w-full border-b border-border px-3 py-2 text-left text-sm last:border-b-0 hover:bg-warm-grey/40"
-                onClick={() => setResults(rp.results as ReplayResult[])}
+                onClick={() => {
+                  setResults(rp.results as ReplayResult[]);
+                  setResultsUseCase(rp.useCase as UseCase);
+                }}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-xs">
@@ -209,8 +222,17 @@ export function ReplayClient({ adminEmail }: { adminEmail: string }) {
   );
 }
 
-function ResultCard({ result }: { result: ReplayResult }) {
+function ResultCard({
+  result,
+  useCase,
+}: {
+  result: ReplayResult;
+  useCase: UseCase;
+}) {
   const [showRaw, setShowRaw] = useState(false);
+  const signalReport =
+    useCase === "signal_reports" ? tryParseSignalReport(result.output) : null;
+
   return (
     <div className="rounded border border-border bg-white p-4">
       <div className="mb-2 flex items-center justify-between">
@@ -250,8 +272,15 @@ function ResultCard({ result }: { result: ReplayResult }) {
           {result.validationError}
         </div>
       )}
-      <details className="mb-2">
-        <summary className="cursor-pointer text-sm font-medium">Output</summary>
+      {signalReport ? (
+        <div className="mb-2">
+          <SignalReportPreview report={signalReport} />
+        </div>
+      ) : null}
+      <details className="mb-2" open={!signalReport}>
+        <summary className="cursor-pointer text-sm font-medium">
+          {signalReport ? "Raw output" : "Output"}
+        </summary>
         <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap rounded bg-warm-grey/40 p-2 text-xs">
           {result.output || "(empty)"}
         </pre>
