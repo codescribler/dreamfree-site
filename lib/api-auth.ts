@@ -11,10 +11,12 @@ export interface ApiAuthContext {
   name: string;
 }
 
-const UNAUTHORIZED = NextResponse.json(
-  { error: "unauthorized" },
-  { status: 401 },
-);
+// Fresh response per call — NextResponse bodies are ReadableStreams that can
+// only be consumed once, so a shared module-scope instance breaks under
+// concurrent traffic.
+function unauthorized(): NextResponse {
+  return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+}
 
 function hashKey(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
@@ -30,14 +32,14 @@ export async function authenticateApiRequest(
 ): Promise<ApiAuthContext | NextResponse> {
   const header = req.headers.get("authorization");
   if (!header || !header.toLowerCase().startsWith("bearer ")) {
-    return UNAUTHORIZED;
+    return unauthorized();
   }
   const raw = header.slice(7).trim();
-  if (!raw) return UNAUTHORIZED;
+  if (!raw) return unauthorized();
 
   const keyHash = hashKey(raw);
   const result = await convex.mutation(api.apiKeys.verifyAndTouch, { keyHash });
-  if (!result) return UNAUTHORIZED;
+  if (!result) return unauthorized();
 
   return { keyId: result.keyId, name: result.name };
 }

@@ -55,7 +55,7 @@ includes the full `report` payload (see GET below).
 - `401` — missing, malformed, or revoked bearer token. Body: `{"error": "unauthorized"}`.
 - `400` — missing required fields. Body: `{"error": "missing_fields", "fields": [...]}`.
 - `400` — body was not valid JSON. Body: `{"error": "invalid_json"}`.
-- `502` — site fetch failed. The report row is still saved as `fetch_failed` for dashboard visibility. Body: `{"error": "fetch_failed", "detail": "...", "reportId": "...", "viewUrl": "..."}`.
+- `502` — site fetch failed. The report row is still saved as `fetch_failed` for dashboard visibility. Body: `{"error": "fetch_failed", "detail": "...", "reportId": "..."}`. No `viewUrl` is returned because failed reports have no shareable token.
 
 ## Get a report
 

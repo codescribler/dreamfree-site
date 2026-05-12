@@ -92,12 +92,13 @@ export async function POST(req: NextRequest) {
         status: "fetch_failed",
       },
     );
+    // No viewUrl — failed reports have no verifyToken, so no shareable link is possible.
+    // The reportId is returned so the caller can correlate with the dashboard.
     return NextResponse.json(
       {
         error: "fetch_failed",
         detail: fetchResult.detail,
         reportId: failedReportId,
-        viewUrl: buildViewUrl(failedReportId, ""),
       },
       { status: 502 },
     );

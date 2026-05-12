@@ -27,7 +27,17 @@ export async function GET(
     return NextResponse.redirect(new URL(`/report/${id}`, req.url));
   }
 
-  if (!report || report.status !== "success" || report.verifyToken !== token) {
+  // Reject: missing report, unusable status (only fetch/llm-failed have empty token), or mismatched token.
+  // Note: pending reports are accepted — API-created reports include the token in their viewUrl
+  // before the LLM completes, and the prospect should still be marked verified so they see the
+  // full report when generation finishes.
+  if (
+    !report ||
+    !report.verifyToken ||
+    report.status === "fetch_failed" ||
+    report.status === "llm_failed" ||
+    report.verifyToken !== token
+  ) {
     return NextResponse.redirect(new URL(`/report/${id}`, req.url));
   }
 
