@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
-import { stripHtml } from "@/lib/html-stripper";
+import { fetchAndStripSite } from "@/lib/site-fetch";
 import { randomInt, randomBytes } from "crypto";
 
 export const maxDuration = 30;
@@ -192,29 +192,10 @@ export async function POST(req: NextRequest) {
   });
   steps.push(`Lead upserted: ${leadId}`);
 
-  // 3. Fetch the website HTML (kept on the request path for fast-fail UX)
-  let rawHtml: string;
-  try {
-    const siteUrl = url.startsWith("http") ? url : `https://${url}`;
-    const response = await fetch(siteUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; DreamfreeBot/1.0; +https://dreamfree.co.uk)",
-      },
-      signal: AbortSignal.timeout(10000),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    rawHtml = await response.text();
-    steps.push(`Website fetched: ${rawHtml.length} chars`);
-  } catch (err) {
-    steps.push(
-      `Website fetch FAILED: ${err instanceof Error ? err.message : String(err)}`,
-    );
-
+  // 3. Fetch the website HTML + strip (shared helper for fast-fail UX)
+  const fetchResult = await fetchAndStripSite(url);
+  if (!fetchResult.ok) {
+    steps.push(`Website fetch FAILED: ${fetchResult.detail}`);
     await convex.mutation(api.signalReports.saveFailedReport, {
       leadId,
       anonymousId,
@@ -222,16 +203,14 @@ export async function POST(req: NextRequest) {
       customerDescription,
       status: "fetch_failed",
     });
-
     await sendRunLogEmail({
       ...logBase,
       steps,
       outcome: "fetch_failed",
       leadId: leadId as string,
-      errorDetail: err instanceof Error ? err.message : String(err),
+      errorDetail: fetchResult.detail,
       durationMs: Date.now() - startTime,
     });
-
     return NextResponse.json({
       error: "fetch_failed",
       message:
@@ -239,38 +218,8 @@ export async function POST(req: NextRequest) {
       usesRemaining: MAX_USES - useCount,
     });
   }
-
-  // 4. Strip HTML to meaningful content
-  const strippedContent = stripHtml(rawHtml);
-  steps.push(`HTML stripped: ${strippedContent.length} chars of content`);
-
-  if (strippedContent.length < 100) {
-    steps.push("Content too short (<100 chars)");
-
-    await convex.mutation(api.signalReports.saveFailedReport, {
-      leadId,
-      anonymousId,
-      url,
-      customerDescription,
-      status: "fetch_failed",
-    });
-
-    await sendRunLogEmail({
-      ...logBase,
-      steps,
-      outcome: "fetch_failed",
-      leadId: leadId as string,
-      errorDetail: `Only ${strippedContent.length} chars of content extracted`,
-      durationMs: Date.now() - startTime,
-    });
-
-    return NextResponse.json({
-      error: "fetch_failed",
-      message:
-        "We couldn't read enough content from that page. It may use JavaScript rendering that we can't process. Try a different page URL.",
-      usesRemaining: MAX_USES - useCount,
-    });
-  }
+  const strippedContent = fetchResult.strippedContent;
+  steps.push(`Website fetched + stripped: ${strippedContent.length} chars`);
 
   // 5. Generate verify credentials
   const verifyCode = String(randomInt(100000, 999999));
