@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Leads" },
   { href: "/dashboard/insights", label: "Insights" },
   { href: "/dashboard/admin/models", label: "AI Models" },
+  { href: "/dashboard/admin/api-keys", label: "API Keys" },
 ];
 
 export function DashboardNav() {
