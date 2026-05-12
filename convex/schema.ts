@@ -43,10 +43,15 @@ export default defineSchema({
     signalCustomer: v.optional(v.string()),
     lastSeenAt: v.number(),
     createdAt: v.number(),
+    leadType: v.optional(
+      v.union(v.literal("inbound"), v.literal("outbound")),
+    ),
+    consentedAt: v.optional(v.number()),
   })
     .index("by_email", ["email"])
     .index("by_createdAt", ["createdAt"])
-    .index("by_lastSeenAt", ["lastSeenAt"]),
+    .index("by_lastSeenAt", ["lastSeenAt"])
+    .index("by_leadType", ["leadType"]),
 
   events: defineTable({
     type: v.string(),
@@ -167,12 +172,14 @@ export default defineSchema({
       ),
     ),
     createdAt: v.number(),
+    createdViaApiKeyId: v.optional(v.id("apiKeys")),
   })
     .index("by_leadId", ["leadId"])
     .index("by_anonymousId", ["anonymousId"])
     .index("by_url", ["url"])
     .index("by_createdAt", ["createdAt"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_createdViaApiKeyId", ["createdViaApiKeyId"]),
 
   signalInsights: defineTable({
     section: v.union(
