@@ -23,6 +23,7 @@ import type * as events from "../events.js";
 import type * as formSubmissions from "../formSubmissions.js";
 import type * as leads from "../leads.js";
 import type * as loginTokens from "../loginTokens.js";
+import type * as migrations from "../migrations.js";
 import type * as missionControl from "../missionControl.js";
 import type * as signalInsights from "../signalInsights.js";
 import type * as signalInsightsAction from "../signalInsightsAction.js";
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   formSubmissions: typeof formSubmissions;
   leads: typeof leads;
   loginTokens: typeof loginTokens;
+  migrations: typeof migrations;
   missionControl: typeof missionControl;
   signalInsights: typeof signalInsights;
   signalInsightsAction: typeof signalInsightsAction;
