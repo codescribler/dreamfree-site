@@ -344,3 +344,7 @@ displaying — never expose a raw Convex id in the brief.
 This is v1. Breaking changes will be communicated by deploying a new path
 (e.g. `/api/mission-control/v2/activity`) so existing consumers continue to
 work.
+
+## See also
+
+- [`docs/signal-report-api.md`](./signal-report-api.md) — the outbound API for generating Signal Reports against arbitrary prospect URLs (separate API; same `apiKeys` table for auth).
