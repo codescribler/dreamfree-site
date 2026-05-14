@@ -2,19 +2,18 @@
 import { convexTest } from "convex-test";
 import { describe, expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import schema from "./schema";
 import { seedEnrollment } from "./emailCampaignsTestSetup";
-
-vi.mock("../lib/email-campaigns/resend", () => ({
-  sendCampaignEmail: vi.fn(),
-}));
-// eslint-disable-next-line import/first
 import { sendCampaignEmail } from "../lib/email-campaigns/resend";
-// eslint-disable-next-line import/first
 import {
   scheduleDraftSend,
   cancelScheduledDraft,
 } from "./emailCampaignsSending";
+
+vi.mock("../lib/email-campaigns/resend", () => ({
+  sendCampaignEmail: vi.fn(),
+}));
 const mockSend = vi.mocked(sendCampaignEmail);
 
 const modules = import.meta.glob("./**/*.ts");
@@ -29,7 +28,7 @@ async function disableKillSwitch(t: ReturnType<typeof convexTest>) {
 /** Put a draft into the "scheduled" state without a real scheduled function. */
 async function markScheduled(
   t: ReturnType<typeof convexTest>,
-  draftId: any,
+  draftId: Id<"emailDrafts">,
 ) {
   await t.run(async (ctx) => {
     await ctx.db.patch(draftId, {
