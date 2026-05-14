@@ -582,6 +582,17 @@ export const tryEnrolFromReport = internalMutation({
       return null;
     }
 
+    // Consent guard — only inbound leads (who came to us and submitted a form,
+    // or were promoted to inbound on first submission) get the marketing
+    // sequence. Outbound API-created leads have not consented to marketing
+    // email; a lead with no leadType is treated the same way, fail-safe.
+    if (lead.leadType !== "inbound") {
+      console.log(
+        `tryEnrolFromReport: lead ${report.leadId} leadType=${lead.leadType ?? "unset"}, not inbound — skipping enrolment`,
+      );
+      return null;
+    }
+
     // Suppression guard
     const suppression = await ctx.db
       .query("emailSuppressions")

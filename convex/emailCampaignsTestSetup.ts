@@ -136,3 +136,31 @@ export async function seedEnrollment(
     };
   });
 }
+
+/**
+ * Seeds config + sequence + briefs + voice, then creates a lead (with the
+ * given leadType) and a successful report — but NO enrollment. For testing
+ * the `tryEnrolFromReport` trigger from a clean slate.
+ */
+export async function seedLeadAndReport(
+  t: T,
+  opts: { leadType?: "inbound" | "outbound" } = {},
+): Promise<{ leadId: Id<"leads">; reportId: Id<"signalReports"> }> {
+  await t.mutation(internal.emailCampaigns.seed, {});
+  return await t.run(async (ctx) => {
+    const leadId = await ctx.db.insert("leads", {
+      email: `lead-${opts.leadType ?? "unset"}@test.com`,
+      firstName: "Sam",
+      anonymousIds: ["anon-1"],
+      sources: ["signal_score"],
+      lastSeenAt: Date.now(),
+      createdAt: Date.now(),
+      ...(opts.leadType ? { leadType: opts.leadType } : {}),
+    });
+    const reportId = await ctx.db.insert(
+      "signalReports",
+      makeReportFields(leadId),
+    );
+    return { leadId, reportId };
+  });
+}
