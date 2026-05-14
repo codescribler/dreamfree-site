@@ -86,3 +86,28 @@ export const verifyAndTouch = mutation({
         };
     },
 });
+/**
+ * Like listKeys but each row is augmented with reportCount — the number
+ * of signalReports rows whose createdViaApiKeyId matches the key.
+ */
+export const listKeysWithStats = query({
+    args: {},
+    handler: async (ctx) => {
+        const keys = await ctx.db.query("apiKeys").collect();
+        const enriched = await Promise.all(keys.map(async (k) => {
+            const reports = await ctx.db
+                .query("signalReports")
+                .withIndex("by_createdViaApiKeyId", (q) => q.eq("createdViaApiKeyId", k._id))
+                .collect();
+            return {
+                _id: k._id,
+                name: k.name,
+                lastCalledAt: k.lastCalledAt,
+                revokedAt: k.revokedAt,
+                createdAt: k.createdAt,
+                reportCount: reports.length,
+            };
+        }));
+        return enriched.sort((a, b) => b.createdAt - a.createdAt);
+    },
+});

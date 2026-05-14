@@ -413,3 +413,125 @@ export const averagesBySection = query({
         };
     },
 });
+/**
+ * Create a pending API-sourced report and schedule the LLM action.
+ * Same flow as enqueueReport but:
+ *  - accessLevel starts at "verified" (no email gate for API-created reports)
+ *  - createdViaApiKeyId is recorded for admin attribution
+ *  - anonymousId is empty (the prospect did not visit the site to trigger this)
+ */
+export const enqueueReportFromApi = mutation({
+    args: {
+        leadId: v.id("leads"),
+        apiKeyId: v.id("apiKeys"),
+        url: v.string(),
+        customerDescription: v.string(),
+        strippedContent: v.string(),
+        firstName: v.string(),
+        email: v.string(),
+        phone: v.optional(v.string()),
+        verifyCode: v.string(),
+        verifyToken: v.string(),
+    },
+    handler: async (ctx, args) => {
+        const reportId = await ctx.db.insert("signalReports", {
+            leadId: args.leadId,
+            anonymousId: "",
+            url: args.url,
+            customerDescription: args.customerDescription,
+            overallScore: 0,
+            gruntTest: { pass: false, explanation: "" },
+            elements: EMPTY_ELEMENTS,
+            quickWin: "",
+            strengths: [],
+            fullSummary: "",
+            status: "pending",
+            accessLevel: "verified",
+            verifyCode: args.verifyCode,
+            verifyToken: args.verifyToken,
+            createdAt: Date.now(),
+            createdViaApiKeyId: args.apiKeyId,
+        });
+        await ctx.scheduler.runAfter(0, internal.signalReportsAction.runReportGeneration, {
+            reportId,
+            strippedContent: args.strippedContent,
+            customerDescription: args.customerDescription,
+            firstName: args.firstName,
+            email: args.email,
+            phone: args.phone,
+            url: args.url,
+            anonymousId: "",
+            verifyCode: args.verifyCode,
+            verifyToken: args.verifyToken,
+        });
+        return reportId;
+    },
+});
+/** Save a failed report on the API path (no anonymousId). */
+export const saveFailedApiReport = mutation({
+    args: {
+        leadId: v.id("leads"),
+        apiKeyId: v.id("apiKeys"),
+        url: v.string(),
+        customerDescription: v.string(),
+        status: v.union(v.literal("fetch_failed"), v.literal("llm_failed")),
+    },
+    handler: async (ctx, args) => {
+        return await ctx.db.insert("signalReports", {
+            leadId: args.leadId,
+            anonymousId: "",
+            url: args.url,
+            customerDescription: args.customerDescription,
+            overallScore: 0,
+            gruntTest: { pass: false, explanation: "" },
+            elements: EMPTY_ELEMENTS,
+            quickWin: "",
+            strengths: [],
+            fullSummary: "",
+            status: args.status,
+            accessLevel: "verified",
+            verifyCode: "",
+            verifyToken: "",
+            createdAt: Date.now(),
+            createdViaApiKeyId: args.apiKeyId,
+        });
+    },
+});
+/**
+ * Returns the JSON shape served by GET /api/v1/signal-reports/{id}.
+ * `report` is populated only on success.
+ */
+export const getApiResponse = query({
+    args: {
+        reportId: v.id("signalReports"),
+        siteUrl: v.string(), // host part of viewUrl, e.g. "https://dreamfree.co.uk"
+    },
+    handler: async (ctx, args) => {
+        const r = await ctx.db.get(args.reportId);
+        if (!r)
+            return null;
+        const viewUrl = `${args.siteUrl}/report/${r._id}?token=${encodeURIComponent(r.verifyToken)}`;
+        if (r.status !== "success") {
+            return {
+                reportId: r._id,
+                status: r.status,
+                viewUrl,
+            };
+        }
+        return {
+            reportId: r._id,
+            status: r.status,
+            viewUrl,
+            report: {
+                url: r.url,
+                customerDescription: r.customerDescription,
+                overallScore: r.overallScore,
+                gruntTest: r.gruntTest,
+                elements: r.elements,
+                quickWin: r.quickWin,
+                strengths: r.strengths,
+                fullSummary: r.fullSummary,
+            },
+        };
+    },
+});

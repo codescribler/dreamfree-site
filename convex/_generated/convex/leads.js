@@ -54,6 +54,11 @@ export const upsertLead = internalMutation({
             if (args.anonymousId && !existing.anonymousIds.includes(args.anonymousId)) {
                 updates.anonymousIds = [...existing.anonymousIds, args.anonymousId];
             }
+            // Promote outbound → inbound on first form submission. Never the reverse.
+            if (existing.leadType === "outbound") {
+                updates.leadType = "inbound";
+                updates.consentedAt = now;
+            }
             await ctx.db.patch(existing._id, updates);
             return existing._id;
         }
@@ -70,6 +75,8 @@ export const upsertLead = internalMutation({
             signalCustomer: args.signalCustomer,
             lastSeenAt: now,
             createdAt: now,
+            leadType: "inbound",
+            consentedAt: now,
         });
     },
 });
@@ -134,5 +141,69 @@ export const upsertLeadPublic = mutation({
     },
     handler: async (ctx, args) => {
         return await ctx.runMutation(internal.leads.upsertLead, args);
+    },
+});
+/**
+ * Upsert a lead from an outbound API call.
+ * On a new row: stamps leadType: "outbound" with no consentedAt.
+ * On an existing row: never changes leadType. Adds the API source if missing.
+ * Returns the lead ID.
+ */
+export const upsertOutboundLead = internalMutation({
+    args: {
+        email: v.string(),
+        firstName: v.optional(v.string()),
+        phone: v.optional(v.string()),
+        website: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const now = Date.now();
+        const email = args.email.toLowerCase();
+        const existing = await getLeadByEmail(ctx, email);
+        const SOURCE = "api_outbound";
+        if (existing) {
+            const updates = { lastSeenAt: now };
+            if (args.firstName && !existing.firstName) {
+                updates.firstName = args.firstName;
+            }
+            if (args.phone && !existing.phone) {
+                updates.phone = args.phone;
+            }
+            if (args.website && !existing.website) {
+                updates.website = args.website;
+            }
+            if (!existing.sources.includes(SOURCE)) {
+                updates.sources = [...existing.sources, SOURCE];
+            }
+            // Intentionally do NOT touch leadType — never demote inbound to outbound.
+            await ctx.db.patch(existing._id, updates);
+            return existing._id;
+        }
+        return await ctx.db.insert("leads", {
+            email,
+            firstName: args.firstName,
+            phone: args.phone,
+            website: args.website,
+            anonymousIds: [],
+            sources: [SOURCE],
+            lastSeenAt: now,
+            createdAt: now,
+            leadType: "outbound",
+            // consentedAt intentionally undefined — they have not consented.
+        });
+    },
+});
+/**
+ * Public wrapper for upsertOutboundLead — used by the API POST route.
+ */
+export const upsertOutboundLeadPublic = mutation({
+    args: {
+        email: v.string(),
+        firstName: v.optional(v.string()),
+        phone: v.optional(v.string()),
+        website: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        return await ctx.runMutation(internal.leads.upsertOutboundLead, args);
     },
 });
