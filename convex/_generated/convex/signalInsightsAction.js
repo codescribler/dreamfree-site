@@ -2,7 +2,6 @@ import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { INSIGHTS_SYSTEM_PROMPT, buildInsightsUserPrompt, parseInsightResponse, } from "../lib/insights-prompt";
-import { OPENROUTER_MODEL_PRIMARY, OPENROUTER_MODEL_FALLBACK, } from "../lib/signal-prompt";
 const PER_MODEL_TIMEOUT_MS = 90_000;
 async function callOpenRouter(model, systemPrompt, userPrompt) {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -51,16 +50,17 @@ export const runInsightGeneration = internalAction({
         }
         const fragments = data.reports;
         const userPrompt = buildInsightsUserPrompt(data.section, fragments);
+        const { primary, fallback } = await ctx.runQuery(internal.aiModels.resolveModelsInternal, { useCase: "signal_insights" });
         let raw;
-        let modelUsed = OPENROUTER_MODEL_PRIMARY;
+        let modelUsed = primary;
         try {
-            raw = await callOpenRouter(OPENROUTER_MODEL_PRIMARY, INSIGHTS_SYSTEM_PROMPT, userPrompt);
+            raw = await callOpenRouter(primary, INSIGHTS_SYSTEM_PROMPT, userPrompt);
         }
         catch (primaryErr) {
             const primaryMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
             try {
-                modelUsed = OPENROUTER_MODEL_FALLBACK;
-                raw = await callOpenRouter(OPENROUTER_MODEL_FALLBACK, INSIGHTS_SYSTEM_PROMPT, userPrompt);
+                modelUsed = fallback;
+                raw = await callOpenRouter(fallback, INSIGHTS_SYSTEM_PROMPT, userPrompt);
             }
             catch (fallbackErr) {
                 const fallbackMsg = fallbackErr instanceof Error

@@ -8,8 +8,6 @@ import { validateGenerationResult, GenerationResultError, } from "../lib/email-c
 import { signUnsubscribeToken } from "../lib/email-campaigns/unsubscribe-token";
 import { VERIFIER_SYSTEM_PROMPT, buildVerifierUserPrompt, } from "../lib/email-campaigns/verifier-prompt";
 import { validateVerifierResult, VerifierResultError, } from "../lib/email-campaigns/verifier-result";
-const MODEL_PRIMARY = "google/gemini-2.5-flash";
-const MODEL_FALLBACK = "qwen/qwen3.6-plus";
 export const generateSequence = internalAction({
     args: { enrollmentId: v.id("emailEnrollments") },
     handler: async (ctx, args) => {
@@ -27,6 +25,9 @@ export const generateSequence = internalAction({
             });
             return;
         }
+        const { primary: MODEL_PRIMARY, fallback: MODEL_FALLBACK } = await ctx.runQuery(internal.aiModels.resolveModelsInternal, {
+            useCase: "email_drafts",
+        });
         const system = buildGenerationSystemPrompt(voiceSpec.body);
         const reportForPrompt = {
             url: report.url,
@@ -198,6 +199,9 @@ export const verifySequence = internalAction({
             console.error(`verifySequence: missing data for ${args.enrollmentId}`);
             return;
         }
+        const { primary: MODEL_PRIMARY, fallback: MODEL_FALLBACK } = await ctx.runQuery(internal.aiModels.resolveModelsInternal, {
+            useCase: "email_drafts",
+        });
         const draftsForVerifier = data.drafts.map((d) => ({
             role: d.role,
             order: d.order,
