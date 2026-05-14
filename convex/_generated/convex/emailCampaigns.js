@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { ROLES, DEFAULT_ROLE_GAPS_MS, VOICE_SPEC_STUB_BODY, } from "../lib/email-campaigns/roles";
+import { clampToBusinessHours } from "../lib/email-campaigns/business-hours";
+import { scheduleDraftSend, cancelScheduledDraft, } from "./emailCampaignsSending";
 const SKELETON_BRIEFS = {
     orientation: {
         purpose: "Introduce Daniel, set up what's coming, and surface the one most striking finding from the report. Make the reader want the next email.",
@@ -608,11 +610,30 @@ export const approveEnrollment = mutation({
         if (enrollment.status !== "pending_approval") {
             throw new Error(`Cannot approve from status=${enrollment.status} (must be pending_approval)`);
         }
+        const sequence = await ctx.db.get(enrollment.sequenceId);
+        const config = await ctx.db.query("campaignConfig").first();
+        if (!sequence || !config) {
+            throw new Error("Cannot approve — sequence or campaignConfig missing (run emailCampaigns:seed)");
+        }
+        const drafts = await ctx.db
+            .query("emailDrafts")
+            .withIndex("by_enrollment", (q) => q.eq("enrollmentId", args.enrollmentId))
+            .collect();
+        const orientation = drafts.find((d) => d.order === 0);
+        if (!orientation) {
+            throw new Error("Cannot approve — orientation draft missing");
+        }
         await ctx.db.patch(args.enrollmentId, {
             status: "approved",
             approvedAt: Date.now(),
         });
-        // NB: scheduling of the orientation send happens in Plan 3.
+        // Schedule ONLY the orientation email. Drafts 2–7 are scheduled reactively
+        // by sendDraft after each previous email successfully sends.
+        const base = Math.max(Date.now(), enrollment.enrolledAt + 2 * 60_000);
+        const when = sequence.orientationRespectsBusinessHours
+            ? clampToBusinessHours(base, config)
+            : base;
+        await scheduleDraftSend(ctx, orientation._id, when);
     },
 });
 export const pauseEnrollment = mutation({
@@ -632,6 +653,8 @@ export const pauseEnrollment = mutation({
             pausedReason: args.reason,
             pausedAt: Date.now(),
         });
+        // Cancel the in-flight scheduled send and reset that draft to "draft".
+        await cancelScheduledDraft(ctx, args.enrollmentId);
     },
 });
 export const resumeEnrollment = mutation({
@@ -643,12 +666,32 @@ export const resumeEnrollment = mutation({
         if (enrollment.status !== "paused") {
             throw new Error(`Cannot resume from status=${enrollment.status} (must be paused)`);
         }
+        const sequence = await ctx.db.get(enrollment.sequenceId);
+        const config = await ctx.db.query("campaignConfig").first();
+        if (!sequence || !config) {
+            throw new Error("Cannot resume — sequence or campaignConfig missing (run emailCampaigns:seed)");
+        }
         await ctx.db.patch(args.enrollmentId, {
             status: "approved",
             pausedReason: undefined,
             pausedAt: undefined,
         });
-        // NB: re-scheduling of the next pending draft happens in Plan 3.
+        // Reschedule the next unsent draft (lowest order with status "draft").
+        const drafts = await ctx.db
+            .query("emailDrafts")
+            .withIndex("by_enrollment", (q) => q.eq("enrollmentId", args.enrollmentId))
+            .collect();
+        drafts.sort((a, b) => a.order - b.order);
+        const next = drafts.find((d) => d.status === "draft");
+        if (!next) {
+            // Every draft is already sent/skipped — nothing to reschedule.
+            return;
+        }
+        // Orientation resumes immediately; any later role uses its gap, clamped.
+        const when = next.order === 0
+            ? Date.now()
+            : clampToBusinessHours(Date.now() + (sequence.roleGaps[next.order] ?? 0), config);
+        await scheduleDraftSend(ctx, next._id, when);
     },
 });
 export const stopEnrollment = mutation({
@@ -666,6 +709,8 @@ export const stopEnrollment = mutation({
             status: "stopped",
             stoppedAt: Date.now(),
         });
+        // Cancel any in-flight scheduled send.
+        await cancelScheduledDraft(ctx, args.enrollmentId);
     },
 });
 // ===== Draft editing =====
@@ -741,6 +786,8 @@ export const suppressEmail = mutation({
                 await ctx.db.patch(args.enrollmentId, {
                     status: "unsubscribed",
                 });
+                // Cancel any in-flight scheduled send for this enrollment.
+                await cancelScheduledDraft(ctx, args.enrollmentId);
             }
         }
         return { alreadySuppressed: false };
