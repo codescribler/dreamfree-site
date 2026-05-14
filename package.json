@@ -9,6 +9,8 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "validate-content": "npx tsx scripts/validate-content.ts",
     "prebuild": "npx tsx scripts/validate-content.ts"
   },
@@ -24,20 +26,24 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-markdown": "^10.1.0",
-    "resend": "^6.10.0"
+    "resend": "^6.10.0",
+    "svix": "^1.93.0"
   },
   "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "convex-test": "^0.0.52",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.8.1",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }
