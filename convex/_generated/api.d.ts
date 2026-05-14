@@ -18,6 +18,7 @@ import type * as crons from "../crons.js";
 import type * as demoRequests from "../demoRequests.js";
 import type * as emailCampaigns from "../emailCampaigns.js";
 import type * as emailCampaignsAction from "../emailCampaignsAction.js";
+import type * as emailCampaignsInbound from "../emailCampaignsInbound.js";
 import type * as emailCampaignsSending from "../emailCampaignsSending.js";
 import type * as emailCampaignsTestSetup from "../emailCampaignsTestSetup.js";
 import type * as emails from "../emails.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   demoRequests: typeof demoRequests;
   emailCampaigns: typeof emailCampaigns;
   emailCampaignsAction: typeof emailCampaignsAction;
+  emailCampaignsInbound: typeof emailCampaignsInbound;
   emailCampaignsSending: typeof emailCampaignsSending;
   emailCampaignsTestSetup: typeof emailCampaignsTestSetup;
   emails: typeof emails;
