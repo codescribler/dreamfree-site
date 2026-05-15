@@ -506,6 +506,82 @@ export const sendDemoRequestNotification = internalAction({
   },
 });
 
+/** Notify Daniel when a Signal Report fails (fetch_failed or llm_failed).
+ *  Called by `failReport` and `saveFailedReport` via the scheduler — these
+ *  are the single sources of truth for failures, so this notification fires
+ *  on EVERY failure path. */
+export const sendReportFailureNotification = internalAction({
+  args: {
+    reportId: v.id("signalReports"),
+    leadId: v.id("leads"),
+    url: v.string(),
+    customerDescription: v.string(),
+    status: v.union(v.literal("fetch_failed"), v.literal("llm_failed")),
+    leadEmail: v.string(),
+    leadFirstName: v.optional(v.string()),
+    error: v.optional(v.string()),
+  },
+  handler: async (_ctx, args) => {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.error(
+        "RESEND_API_KEY not set — skipping report failure notification",
+      );
+      return;
+    }
+
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://dreamfree.co.uk";
+    const leadLink = `${siteUrl}/dashboard/leads/${args.leadId}`;
+    const statusLabel =
+      args.status === "fetch_failed"
+        ? "Couldn't fetch the site"
+        : "LLM failed to score the site";
+    const errorBlock = args.error
+      ? `<div style="margin:16px 0;padding:14px;background:#fff0f0;border-radius:10px;"><p style="margin:0 0 4px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">Error</p><p style="margin:0;font-size:13px;font-family:monospace;word-break:break-word;">${args.error.slice(0, 600)}</p></div>`
+      : "";
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Dreamfree <notifications@dreamfree.co.uk>",
+        to: "daniel@dreamfree.co.uk",
+        reply_to: args.leadEmail,
+        subject: `⚠️ Signal Report FAILED for ${args.url} (${args.status})`,
+        html: `
+          <div style="font-family:-apple-system,sans-serif;max-width:600px;">
+            <h2 style="margin:0 0 16px;color:#b00;">Signal Report Failed</h2>
+            <div style="background:#fff3cd;border-left:3px solid #e6a817;padding:10px 14px;margin-bottom:16px;font-size:14px;">
+              <strong>${statusLabel}</strong> &mdash; the prospect won&rsquo;t get their report. Follow up directly.
+            </div>
+            <table style="border-collapse:collapse;width:100%;font-size:14px;">
+              <tr><td style="padding:6px 12px 6px 0;color:#888;">Name</td><td style="padding:6px 0;font-weight:600;">${args.leadFirstName || "Unknown"}</td></tr>
+              <tr><td style="padding:6px 12px 6px 0;color:#888;">Email</td><td style="padding:6px 0;">${args.leadEmail}</td></tr>
+              <tr><td style="padding:6px 12px 6px 0;color:#888;">URL</td><td style="padding:6px 0;"><a href="${args.url}">${args.url}</a></td></tr>
+              <tr><td style="padding:6px 12px 6px 0;color:#888;">Ideal customer</td><td style="padding:6px 0;">${args.customerDescription}</td></tr>
+              <tr><td style="padding:6px 12px 6px 0;color:#888;">Status</td><td style="padding:6px 0;"><code>${args.status}</code></td></tr>
+            </table>
+            ${errorBlock}
+            <p style="margin:16px 0;"><a href="${leadLink}" style="display:inline-block;padding:10px 20px;background:#0d7377;color:#fff;text-decoration:none;border-radius:60px;font-weight:600;font-size:14px;">View lead &rarr; Rerun report</a></p>
+          </div>
+        `,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      console.error(
+        "Resend API error (report failure notification):",
+        errText,
+      );
+    }
+  },
+});
+
 /** Email a magic sign-in link to an admin user. */
 export const sendMagicLinkEmail = action({
   args: {

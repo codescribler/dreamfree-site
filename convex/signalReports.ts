@@ -197,14 +197,36 @@ export const completeReport = internalMutation({
   },
 });
 
-/** Patch a pending report to a failure status. */
+/** Patch a pending report to a failure status. Schedules an admin
+ *  notification — every llm-side failure path ends here so this is the single
+ *  source of truth for those notifications. */
 export const failReport = internalMutation({
   args: {
     reportId: v.id("signalReports"),
     status: v.union(v.literal("fetch_failed"), v.literal("llm_failed")),
+    error: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.reportId, { status: args.status });
+
+    const report = await ctx.db.get(args.reportId);
+    if (!report) return;
+    const lead = await ctx.db.get(report.leadId);
+    if (!lead) return;
+    await ctx.scheduler.runAfter(
+      0,
+      internal.emails.sendReportFailureNotification,
+      {
+        reportId: args.reportId,
+        leadId: report.leadId,
+        url: report.url,
+        customerDescription: report.customerDescription,
+        status: args.status,
+        leadEmail: lead.email,
+        leadFirstName: lead.firstName,
+        error: args.error,
+      },
+    );
   },
 });
 
@@ -240,7 +262,9 @@ export const clearRateLimitedForLead = mutation({
   },
 });
 
-/** Save a failed or rate-limited report (minimal data). */
+/** Save a failed or rate-limited report (minimal data). Schedules an admin
+ *  notification for real failures (fetch_failed / llm_failed) — rate-limited
+ *  is expected behaviour and intentionally does NOT notify. */
 export const saveFailedReport = mutation({
   args: {
     leadId: v.id("leads"),
@@ -252,9 +276,10 @@ export const saveFailedReport = mutation({
       v.literal("llm_failed"),
       v.literal("rate_limited"),
     ),
+    error: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("signalReports", {
+    const reportId = await ctx.db.insert("signalReports", {
       leadId: args.leadId,
       anonymousId: args.anonymousId,
       url: args.url,
@@ -271,6 +296,29 @@ export const saveFailedReport = mutation({
       verifyToken: "",
       createdAt: Date.now(),
     });
+
+    // Notify Daniel for real failures only — rate-limited is expected.
+    if (args.status === "fetch_failed" || args.status === "llm_failed") {
+      const lead = await ctx.db.get(args.leadId);
+      if (lead) {
+        await ctx.scheduler.runAfter(
+          0,
+          internal.emails.sendReportFailureNotification,
+          {
+            reportId,
+            leadId: args.leadId,
+            url: args.url,
+            customerDescription: args.customerDescription,
+            status: args.status,
+            leadEmail: lead.email,
+            leadFirstName: lead.firstName,
+            error: args.error,
+          },
+        );
+      }
+    }
+
+    return reportId;
   },
 });
 

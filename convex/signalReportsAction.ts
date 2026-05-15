@@ -138,6 +138,7 @@ export const runReportGeneration = internalAction({
         await ctx.runMutation(internal.signalReports.failReport, {
           reportId: args.reportId,
           status: "llm_failed",
+          error: `primary=${primaryMsg}; fallback=${fallbackMsg}`.slice(0, 1000),
         });
         return;
       }
