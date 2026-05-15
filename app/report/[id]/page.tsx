@@ -19,6 +19,7 @@ import { DemoRequestCTA } from "@/components/report/DemoRequestCTA";
 import { ShareForm } from "@/components/report/ShareForm";
 import { ReportActions } from "@/components/report/ReportActions";
 import { ReportPending } from "@/components/report/ReportPending";
+import { ReportFailed } from "@/components/report/ReportFailed";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
@@ -98,6 +99,24 @@ export default async function ReportPage({
     return <ReportPending reportId={id} url={data.report.url} />;
   }
 
+  // Failed states get a friendly UI with retry (where retry makes sense) and
+  // a "Daniel has been notified" message — which is now actually true thanks
+  // to the failure-notification scheduler in failReport/saveFailedReport.
+  if (
+    data.report.status === "fetch_failed" ||
+    data.report.status === "llm_failed" ||
+    data.report.status === "rate_limited"
+  ) {
+    return (
+      <ReportFailed
+        reportId={id}
+        url={data.report.url}
+        status={data.report.status}
+      />
+    );
+  }
+
+  // Any other unexpected status (shouldn't reach here).
   if (data.report.status !== "success") {
     notFound();
   }
