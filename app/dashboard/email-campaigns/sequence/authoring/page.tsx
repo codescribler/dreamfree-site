@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc } from "@/convex/_generated/dataModel";
 import {
@@ -93,13 +93,173 @@ function AuthoringPageInner() {
       {!ready ? (
         <p className="text-sm text-muted">Loading…</p>
       ) : (
-        <PromptPanel
-          subTab={subTab}
-          prompt={prompt}
-          voiceSpec={voiceSpec}
-          activeBrief={subTab !== "voice" ? briefsByRole[subTab] : undefined}
-        />
+        <>
+          <PromptPanel
+            subTab={subTab}
+            prompt={prompt}
+            voiceSpec={voiceSpec}
+            activeBrief={subTab !== "voice" ? briefsByRole[subTab] : undefined}
+          />
+          <SaveBackPanel
+            subTab={subTab}
+            sequence={sequence ?? null}
+            voiceSpec={voiceSpec ?? null}
+            activeBrief={subTab !== "voice" ? briefsByRole[subTab] : undefined}
+            onAdvance={setSubTab}
+          />
+        </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Self-contained save area on the authoring page. Avoids forcing the user to
+ * tab over to the Briefs / Voice editor — they paste Claude's result here and
+ * save in one place, then "Save & continue" advances them to the next role.
+ *
+ * Uses the same `saveBrief` / `saveVoiceSpec` mutations the standalone editors
+ * use, so storage / versioning behaviour is unchanged.
+ */
+function SaveBackPanel({
+  subTab,
+  sequence,
+  voiceSpec,
+  activeBrief,
+  onAdvance,
+}: {
+  subTab: AuthoringTab;
+  sequence: Doc<"emailSequences"> | null;
+  voiceSpec: Doc<"emailVoiceSpec"> | null;
+  activeBrief: Doc<"emailRoleBriefs"> | undefined;
+  onAdvance: (next: AuthoringTab) => void;
+}) {
+  const [pasted, setPasted] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const saveBrief = useMutation(api.emailCampaigns.saveBrief);
+  const saveVoice = useMutation(api.emailCampaigns.saveVoiceSpec);
+
+  // When the active tab changes, pre-load whatever's currently saved so the
+  // user can see / refine it, or paste over the top.
+  useEffect(() => {
+    if (subTab === "voice") {
+      setPasted(voiceSpec?.body ?? "");
+    } else if (activeBrief) {
+      setPasted(activeBrief.workedExample);
+    } else {
+      setPasted("");
+    }
+    setJustSaved(false);
+    setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subTab, activeBrief?._id, voiceSpec?._id]);
+
+  async function doSave(): Promise<boolean> {
+    setError(null);
+    if (!pasted.trim()) {
+      setError(
+        subTab === "voice" ? "Voice spec is empty" : "Worked example is empty",
+      );
+      return false;
+    }
+    setSaving(true);
+    try {
+      if (subTab === "voice") {
+        await saveVoice({
+          body: pasted,
+          editorEmail: "daniel@dreamfree.co.uk",
+        });
+      } else {
+        if (!activeBrief || !sequence) {
+          setError("Brief or sequence not loaded yet — try again in a moment");
+          return false;
+        }
+        await saveBrief({
+          sequenceId: sequence._id,
+          role: subTab,
+          purpose: activeBrief.purpose,
+          requiredBeats: activeBrief.requiredBeats,
+          loopsToOpen: activeBrief.loopsToOpen,
+          loopsToClose: activeBrief.loopsToClose,
+          tone: activeBrief.tone,
+          lengthGuide: activeBrief.lengthGuide,
+          workedExample: pasted,
+          editorEmail: "daniel@dreamfree.co.uk",
+        });
+      }
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 3000);
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const currentIndex = SUB_TABS.findIndex((t) => t.key === subTab);
+  const nextTab =
+    currentIndex >= 0 && currentIndex < SUB_TABS.length - 1
+      ? SUB_TABS[currentIndex + 1]
+      : null;
+
+  async function saveAndContinue() {
+    const ok = await doSave();
+    if (ok && nextTab) {
+      onAdvance(nextTab.key);
+    }
+  }
+
+  const itemLabel = subTab === "voice" ? "voice spec" : "worked example";
+
+  return (
+    <div className="rounded-xl border border-border bg-white p-4">
+      <h3 className="text-base font-bold text-charcoal">
+        Paste Claude&rsquo;s result back here
+      </h3>
+      <p className="mt-1 text-sm text-muted">
+        Drop in the {itemLabel} from your Claude conversation. Saving creates a
+        new version. Pre-loaded with the currently saved value so you can
+        refine or replace it.
+      </p>
+      <textarea
+        value={pasted}
+        onChange={(e) => setPasted(e.target.value)}
+        rows={12}
+        spellCheck={false}
+        className="mt-3 w-full rounded-md border border-border bg-white p-3 font-mono text-xs leading-relaxed text-charcoal focus:outline-none focus:ring-2 focus:ring-teal"
+        placeholder={`Paste the ${itemLabel} from Claude…`}
+      />
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={doSave}
+          disabled={saving}
+          className="rounded-md bg-charcoal px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+        {nextTab && (
+          <button
+            type="button"
+            onClick={saveAndContinue}
+            disabled={saving}
+            className="rounded-md bg-teal px-4 py-2 text-sm font-semibold text-white hover:bg-teal-deep disabled:opacity-50"
+          >
+            {saving ? "Saving…" : `Save & continue → ${nextTab.label}`}
+          </button>
+        )}
+        {justSaved && (
+          <span className="text-sm font-medium text-teal">Saved ✓</span>
+        )}
+        {error && (
+          <span className="text-sm font-medium text-red-600">{error}</span>
+        )}
+      </div>
     </div>
   );
 }
