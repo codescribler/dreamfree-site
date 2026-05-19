@@ -260,3 +260,81 @@ export const upsertOutboundLeadPublic = mutation({
     return await ctx.runMutation(internal.leads.upsertOutboundLead, args);
   },
 });
+
+/**
+ * List outbound (API-generated) leads with their most-recent API report
+ * joined. Engaged rows sort first, then by createdAt desc.
+ *
+ * Used by the /dashboard/api-leads page. Filter:
+ *   - "all" (default): every outbound lead
+ *   - "engaged":       firstEngagedAt set
+ *   - "pending":       firstEngagedAt not set
+ */
+export const listOutbound = query({
+  args: {
+    filter: v.optional(
+      v.union(
+        v.literal("all"),
+        v.literal("engaged"),
+        v.literal("pending"),
+      ),
+    ),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const filter = args.filter ?? "all";
+    const limit = args.limit ?? 200;
+
+    const outbound = await ctx.db
+      .query("leads")
+      .withIndex("by_leadType", (q) => q.eq("leadType", "outbound"))
+      .take(500);
+
+    const narrowed = outbound.filter((l) => {
+      if (filter === "engaged") return l.firstEngagedAt != null;
+      if (filter === "pending") return l.firstEngagedAt == null;
+      return true;
+    });
+
+    narrowed.sort((a, b) => {
+      const aEng = a.firstEngagedAt;
+      const bEng = b.firstEngagedAt;
+      if (aEng != null && bEng != null) return bEng - aEng;
+      if (aEng != null) return -1;
+      if (bEng != null) return 1;
+      return b.createdAt - a.createdAt;
+    });
+
+    const sliced = narrowed.slice(0, limit);
+
+    return await Promise.all(
+      sliced.map(async (lead) => {
+        const reports = await ctx.db
+          .query("signalReports")
+          .withIndex("by_leadId", (q) => q.eq("leadId", lead._id))
+          .order("desc")
+          .take(20);
+        const apiReports = reports.filter((r) => r.createdViaApiKeyId != null);
+        const report = apiReports[0] ?? null;
+        let apiKeyName: string | null = null;
+        if (report?.createdViaApiKeyId) {
+          const key = await ctx.db.get(report.createdViaApiKeyId);
+          apiKeyName = key?.name ?? null;
+        }
+        return { lead, report, apiKeyName };
+      }),
+    );
+  },
+});
+
+/** Count of outbound leads in the system (engaged + unengaged). */
+export const countOutbound = query({
+  args: {},
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query("leads")
+      .withIndex("by_leadType", (q) => q.eq("leadType", "outbound"))
+      .take(2000);
+    return rows.length;
+  },
+});
