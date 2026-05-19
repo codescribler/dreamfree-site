@@ -189,3 +189,33 @@ export const getById = query({
         return await ctx.db.get(args.requestId);
     },
 });
+/**
+ * Board view for /dashboard/demos: four active columns plus a small
+ * archive summary. Requests are pulled most-recently-updated-first within
+ * each column so the freshest action sits at the top.
+ */
+export const board = query({
+    args: {},
+    handler: async (ctx) => {
+        const rows = await ctx.db.query("demoRequests").collect();
+        rows.sort((a, b) => b.updatedAt - a.updatedAt);
+        const requested = rows.filter((r) => r.status === "requested");
+        const inProgress = rows.filter((r) => r.status === "in_progress");
+        const delivered = rows.filter((r) => r.status === "demo_complete" || r.status === "notification_sent");
+        const viewed = rows.filter((r) => r.status === "customer_reviewed");
+        const archive = {
+            followedUp: rows.filter((r) => r.status === "followed_up").length,
+            won: rows.filter((r) => r.status === "won").length,
+            lost: rows.filter((r) => r.status === "lost").length,
+        };
+        return { requested, inProgress, delivered, viewed, archive };
+    },
+});
+/** Count of active demo requests for the nav badge (everything not won/lost). */
+export const countActive = query({
+    args: {},
+    handler: async (ctx) => {
+        const rows = await ctx.db.query("demoRequests").take(2000);
+        return rows.filter((r) => r.status !== "won" && r.status !== "lost").length;
+    },
+});
