@@ -249,6 +249,27 @@ Lead is on an email sequence. Currently unused; may populate later.
 
 Tagging system. Currently unused; arrays will be empty.
 
+## Outbound leads & API-created reports
+
+The endpoint hides activity that has no proven engagement, so the daily brief
+reflects acted-on signal rather than queue-fill:
+
+- **`leads`** — outbound leads (those created by `POST /api/v1/signal-reports`)
+  are excluded until their recipient clicks through to view their report. An
+  outbound lead is "engaged" once `firstEngagedAt` is set.
+- **`signalReports`** — API-created reports (rows with `createdViaApiKeyId`)
+  are excluded until `firstViewedAt` is set on the report.
+- **`leadsReferenced`** — the join map mirrors the filter. Hidden outbound
+  leads are not resolvable through this map even if referenced by another
+  row, so they cannot leak in indirectly.
+- **`events`** — unfiltered. The `outbound_report_viewed` event type is the
+  engagement signal; when it appears for a lead, that lead's row and any of
+  their API reports become visible from the next window onward.
+
+`counts` always matches the filtered arrays exactly. This is a v1 behaviour
+tightening, not a schema change — existing consumers continue to deserialise
+without changes.
+
 ## Examples
 
 ### Curl, "what's new since I last asked"
