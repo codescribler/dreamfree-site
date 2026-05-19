@@ -37,7 +37,7 @@ function prettyHost(url: string | undefined): string | null {
 }
 
 type Column = {
-  key: "requested" | "inProgress" | "delivered" | "viewed";
+  key: "requested" | "inProgress" | "ready" | "delivered" | "viewed";
   label: string;
   accent: string;
   primaryAction: { label: string; status: Status } | null;
@@ -54,7 +54,13 @@ const COLUMNS: Column[] = [
     key: "inProgress",
     label: "In Progress",
     accent: "border-blue-300 bg-blue-50",
-    primaryAction: { label: "Mark delivered →", status: "demo_complete" },
+    primaryAction: { label: "Mark ready →", status: "demo_complete" },
+  },
+  {
+    key: "ready",
+    label: "Ready",
+    accent: "border-indigo-300 bg-indigo-50",
+    primaryAction: { label: "Mark delivered →", status: "notification_sent" },
   },
   {
     key: "delivered",
@@ -100,6 +106,7 @@ export default function DemoBoardPage() {
   const total =
     board.requested.length +
     board.inProgress.length +
+    board.ready.length +
     board.delivered.length +
     board.viewed.length;
 
@@ -134,7 +141,7 @@ export default function DemoBoardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
         {COLUMNS.map((col) => {
           const items = board[col.key];
           return (
@@ -214,6 +221,19 @@ function DemoCard({
         <p className="mt-2 truncate font-mono text-xs text-charcoal">
           {host}
         </p>
+      ) : null}
+
+      {request.demoUrl ? (
+        <a
+          href={request.demoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="mt-2 inline-flex items-center gap-1 truncate rounded-md bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+        >
+          <span aria-hidden>↗</span>
+          <span className="truncate">{prettyHost(request.demoUrl)}</span>
+        </a>
       ) : null}
 
       {request.mainGoal ? (

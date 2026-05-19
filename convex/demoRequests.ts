@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
+import { Id, Doc } from "./_generated/dataModel";
 
 const STATUS_VALIDATOR = v.union(
   v.literal("requested"),
@@ -147,6 +147,7 @@ export const submitFromReport = mutation({
       website: report.url,
       idealCustomer: report.customerDescription,
       additionalInfo: `Triggered from Signal Score report (score: ${report.overallScore}/100). Report id: ${args.reportId}.`,
+      signalReportId: args.reportId,
       status: "requested",
       createdAt: now,
       updatedAt: now,
@@ -219,9 +220,16 @@ export const getById = query({
 });
 
 /**
- * Board view for /dashboard/demos: four active columns plus a small
+ * Board view for /dashboard/demos: five active columns plus a small
  * archive summary. Requests are pulled most-recently-updated-first within
  * each column so the freshest action sits at the top.
+ *
+ * Column → status mapping:
+ *   Requested    → "requested"
+ *   In Progress  → "in_progress"
+ *   Ready        → "demo_complete"      (API has deployed; Daniel to review/send)
+ *   Delivered    → "notification_sent"  (Daniel has sent the link to the customer)
+ *   Viewed       → "customer_reviewed"  (customer has seen the demo)
  */
 export const board = query({
   args: {},
@@ -232,9 +240,8 @@ export const board = query({
 
     const requested = rows.filter((r) => r.status === "requested");
     const inProgress = rows.filter((r) => r.status === "in_progress");
-    const delivered = rows.filter(
-      (r) => r.status === "demo_complete" || r.status === "notification_sent",
-    );
+    const ready = rows.filter((r) => r.status === "demo_complete");
+    const delivered = rows.filter((r) => r.status === "notification_sent");
     const viewed = rows.filter((r) => r.status === "customer_reviewed");
 
     const archive = {
@@ -243,7 +250,7 @@ export const board = query({
       lost: rows.filter((r) => r.status === "lost").length,
     };
 
-    return { requested, inProgress, delivered, viewed, archive };
+    return { requested, inProgress, ready, delivered, viewed, archive };
   },
 });
 
@@ -253,5 +260,113 @@ export const countActive = query({
   handler: async (ctx) => {
     const rows = await ctx.db.query("demoRequests").take(2000);
     return rows.filter((r) => r.status !== "won" && r.status !== "lost").length;
+  },
+});
+
+/**
+ * List demo requests for the public API. Optional filters narrow the result
+ * server-side so the demo-builder doesn't have to download everything.
+ *
+ *   `status` — array of one-or-more status values to include.
+ *   `since`  — only return rows updated on/after this epoch-ms timestamp.
+ *   `limit`  — defaults to 100, max 500.
+ */
+export const listForApi = query({
+  args: {
+    status: v.optional(v.array(STATUS_VALIDATOR)),
+    since: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = Math.min(args.limit ?? 100, 500);
+    const sample = await ctx.db
+      .query("demoRequests")
+      .withIndex("by_createdAt")
+      .order("desc")
+      .take(limit * 3);
+
+    const statusFilter = args.status ? new Set(args.status) : null;
+    const since = args.since ?? null;
+
+    const filtered = sample.filter((r) => {
+      if (statusFilter && !statusFilter.has(r.status)) return false;
+      if (since != null && r.updatedAt < since) return false;
+      return true;
+    });
+    return filtered.slice(0, limit);
+  },
+});
+
+/**
+ * Single demo request with the linked lead and (if applicable) the
+ * originating Signal Report. Used by GET /api/v1/demo-requests/{id}.
+ *
+ * Falls back to parsing `additionalInfo` for the signal report id when
+ * the dedicated `signalReportId` column is unset (legacy rows that
+ * predate that field).
+ */
+export const getApiDetail = query({
+  args: { requestId: v.id("demoRequests") },
+  handler: async (ctx, args) => {
+    const demoRequest = await ctx.db.get(args.requestId);
+    if (!demoRequest) return null;
+
+    const lead = await ctx.db.get(demoRequest.leadId);
+
+    let signalReport: Doc<"signalReports"> | null = null;
+    let reportId: Id<"signalReports"> | null = demoRequest.signalReportId ?? null;
+    if (!reportId && demoRequest.additionalInfo) {
+      const match = demoRequest.additionalInfo.match(
+        /Report id:\s*([a-z0-9]+)\.?/i,
+      );
+      if (match) {
+        reportId = match[1] as Id<"signalReports">;
+      }
+    }
+    if (reportId) {
+      try {
+        signalReport = await ctx.db.get(reportId);
+      } catch {
+        signalReport = null;
+      }
+    }
+
+    return { demoRequest, lead, signalReport };
+  },
+});
+
+/**
+ * Mark a demo as deployed: stamp demoUrl + demoDeployedAt and, when the
+ * current status is at or before "in_progress", advance it to "demo_complete"
+ * (the "Ready" column on the board). Never downgrades a later state.
+ */
+export const markDeployed = mutation({
+  args: {
+    requestId: v.id("demoRequests"),
+    demoUrl: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const demoRequest = await ctx.db.get(args.requestId);
+    if (!demoRequest) {
+      throw new Error("demo request not found");
+    }
+    const now = Date.now();
+    const upstreamStatuses = new Set<Doc<"demoRequests">["status"]>([
+      "requested",
+      "in_progress",
+    ]);
+    const nextStatus: Doc<"demoRequests">["status"] = upstreamStatuses.has(
+      demoRequest.status,
+    )
+      ? "demo_complete"
+      : demoRequest.status;
+
+    await ctx.db.patch(args.requestId, {
+      demoUrl: args.demoUrl,
+      demoDeployedAt: now,
+      status: nextStatus,
+      updatedAt: now,
+    });
+    return { ok: true };
   },
 });

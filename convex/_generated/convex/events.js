@@ -39,10 +39,19 @@ export const listByLead = query({
 });
 /** Recent activity across all leads (for dashboard).
  *
- * Returns `{ events, leadsByLeadId }`. Frontend resolves
- * `event.leadId ? leadsByLeadId[event.leadId] : null` to render
- * "who" alongside the event type/path. Cheaper than N round-trips
- * to ctx.db.get from the client.
+ * Returns `{ events, leadsByLeadId }`. Each event is enriched server-side:
+ *
+ *   1. For events whose `path` matches `/report/<id>`, the report is
+ *      resolved and its `url` (the audited website) is stamped into
+ *      `event.properties.url` — so the activity row renders the website
+ *      name instead of the opaque report id. Applies to `page_view`,
+ *      `scroll_depth`, etc. fired by the global useTracking hook as well
+ *      as the `outbound_report_viewed` events emitted by recordEngagement
+ *      and markEngaged.
+ *
+ *   2. `leadsByLeadId` maps each referenced leadId to a small lead stub
+ *      (email + firstName + name) so the frontend can render "who" without
+ *      N extra round-trips.
  */
 export const recentActivity = query({
     args: {
@@ -50,7 +59,46 @@ export const recentActivity = query({
     },
     handler: async (ctx, args) => {
         const limit = args.limit ?? 30;
-        const events = await ctx.db.query("events").order("desc").take(limit);
+        const rawEvents = await ctx.db.query("events").order("desc").take(limit);
+        // Resolve any /report/<id> paths to the audited URL, in one batch so
+        // identical report ids only hit the DB once.
+        const reportPathRe = /^\/report\/([a-z0-9]+)/i;
+        const reportIds = new Set();
+        for (const e of rawEvents) {
+            const props = (e.properties ?? {});
+            const propUrl = typeof props.url === "string" ? props.url : null;
+            if (propUrl)
+                continue; // already enriched (outbound_report_viewed)
+            const match = e.path.match(reportPathRe);
+            if (match)
+                reportIds.add(match[1]);
+        }
+        const reportUrlById = {};
+        await Promise.all(Array.from(reportIds).map(async (id) => {
+            try {
+                const report = await ctx.db.get(id);
+                if (report)
+                    reportUrlById[id] = report.url;
+            }
+            catch {
+                // Bad id, skip.
+            }
+        }));
+        const events = rawEvents.map((e) => {
+            const props = (e.properties ?? {});
+            if (typeof props.url === "string" && props.url.length > 0)
+                return e;
+            const match = e.path.match(reportPathRe);
+            if (!match)
+                return e;
+            const url = reportUrlById[match[1]];
+            if (!url)
+                return e;
+            return {
+                ...e,
+                properties: { ...props, url, reportId: match[1] },
+            };
+        });
         const leadIds = new Set();
         for (const e of events) {
             if (e.leadId)

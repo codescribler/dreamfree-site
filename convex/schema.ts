@@ -293,6 +293,13 @@ export default defineSchema({
       v.literal("won"),
       v.literal("lost"),
     ),
+    // Set by the external demo-builder via POST /api/v1/demo-requests/{id}/deploy.
+    demoUrl: v.optional(v.string()),
+    demoDeployedAt: v.optional(v.number()),
+    // Link back to the originating Signal Score when the demo came from the
+    // report-page CTA. Older rows have the report id buried in `additionalInfo`
+    // text — see migrations:backfillSignalReportLink.
+    signalReportId: v.optional(v.id("signalReports")),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

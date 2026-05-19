@@ -30,6 +30,52 @@ export const backfillLeadType = internalMutation({
 });
 
 /**
+ * One-shot: populate `demoRequests.signalReportId` for legacy rows that
+ * have the report id buried in `additionalInfo` text — the column didn't
+ * exist when those rows were inserted.
+ *
+ * Pattern matched: "Report id: <id>." (case-insensitive). Idempotent —
+ * skips rows that already have signalReportId set.
+ *
+ * Run with: npx convex run migrations:backfillSignalReportLink '{}'
+ */
+export const backfillSignalReportLink = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const rows = await ctx.db.query("demoRequests").collect();
+    let stamped = 0;
+    let alreadyLinked = 0;
+    let noMatch = 0;
+    let reportNotFound = 0;
+    for (const row of rows) {
+      if (row.signalReportId) {
+        alreadyLinked += 1;
+        continue;
+      }
+      const text = row.additionalInfo;
+      if (!text) {
+        noMatch += 1;
+        continue;
+      }
+      const match = text.match(/Report id:\s*([a-z0-9]+)\.?/i);
+      if (!match) {
+        noMatch += 1;
+        continue;
+      }
+      const reportId = match[1] as Doc<"signalReports">["_id"];
+      const report = await ctx.db.get(reportId);
+      if (!report) {
+        reportNotFound += 1;
+        continue;
+      }
+      await ctx.db.patch(row._id, { signalReportId: reportId });
+      stamped += 1;
+    }
+    return { total: rows.length, stamped, alreadyLinked, noMatch, reportNotFound };
+  },
+});
+
+/**
  * One-shot: backfill `url`/`email`/`firstName` onto `outbound_report_viewed`
  * event properties for events emitted before the recordEngagement url-
  * denormalisation deploy. Looks up the report via properties.reportId
