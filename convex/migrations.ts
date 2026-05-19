@@ -30,6 +30,135 @@ export const backfillLeadType = internalMutation({
 });
 
 /**
+ * One-shot: backfill engagement on API-sourced leads from unambiguous
+ * downstream signals — demo requests, callback requests, and inbound
+ * contact-form submissions. Any one of those proves the prospect did
+ * something material after receiving their report; we can confidently
+ * mark them engaged even though `recordEngagement` didn't capture the
+ * original click.
+ *
+ * For each qualifying lead: stamps `firstEngagedAt` (if unset), bumps
+ * `engagementCount`, and patches `firstViewedAt`/`viewCount` on their
+ * most-recent API report. Emits a single `outbound_report_viewed` event
+ * with `source: "backfill_<signal>"` so the engagement surfaces in
+ * Recent Activity with provenance.
+ *
+ * Skips leads that are already engaged (firstEngagedAt set), so re-runs
+ * are no-ops once stamped.
+ *
+ * Run with: npx convex run migrations:backfillEngagementFromSignals '{}'
+ */
+export const backfillEngagementFromSignals = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const demoRequests = await ctx.db.query("demoRequests").collect();
+    const callbackRequests = await ctx.db.query("callbackRequests").collect();
+    const contactSubmissions = await ctx.db
+      .query("formSubmissions")
+      .withIndex("by_type", (q) => q.eq("type", "contact_form"))
+      .collect();
+
+    // Earliest signal per leadId wins (the engagement event uses that
+    // timestamp). Track the signal type for provenance.
+    const earliestByLead = new Map<
+      string,
+      { ts: number; signal: string }
+    >();
+    const consider = (leadId: string, ts: number, signal: string) => {
+      const existing = earliestByLead.get(leadId);
+      if (!existing || ts < existing.ts) {
+        earliestByLead.set(leadId, { ts, signal });
+      }
+    };
+    for (const r of demoRequests) consider(r.leadId, r.createdAt, "demo_request");
+    for (const r of callbackRequests) consider(r.leadId, r.createdAt, "callback_request");
+    for (const f of contactSubmissions) {
+      if (f.leadId) consider(f.leadId, f.createdAt, "contact_form");
+    }
+
+    let stamped = 0;
+    let alreadyEngaged = 0;
+    let notApiSourced = 0;
+    let noReport = 0;
+    const stampedSummary: Array<{
+      email: string;
+      signal: string;
+      url: string | null;
+    }> = [];
+
+    for (const [leadIdStr, { ts, signal }] of earliestByLead.entries()) {
+      const lead = await ctx.db.get(leadIdStr as Doc<"leads">["_id"]);
+      if (!lead) continue;
+      if (!lead.sources.includes("api_outbound")) {
+        notApiSourced += 1;
+        continue;
+      }
+      if (lead.firstEngagedAt != null) {
+        alreadyEngaged += 1;
+        continue;
+      }
+
+      // Find the most-recent API-created report for the lead.
+      const reports = await ctx.db
+        .query("signalReports")
+        .withIndex("by_leadId", (q) => q.eq("leadId", lead._id))
+        .order("desc")
+        .take(20);
+      const apiReport = reports.find((r) => r.createdViaApiKeyId != null) ?? null;
+
+      // Without an API report we can't synthesise the report-viewed event,
+      // but we can still stamp the lead. Track that separately.
+      if (apiReport) {
+        const nextViewCount = (apiReport.viewCount ?? 0) + 1;
+        await ctx.db.patch(apiReport._id, {
+          firstViewedAt: apiReport.firstViewedAt ?? ts,
+          viewCount: nextViewCount,
+        });
+        await ctx.db.insert("events", {
+          type: "outbound_report_viewed",
+          anonymousId: "",
+          leadId: lead._id,
+          sessionId: "",
+          path: `/report/${apiReport._id}`,
+          properties: {
+            reportId: apiReport._id,
+            viewCount: nextViewCount,
+            url: apiReport.url,
+            email: lead.email,
+            firstName: lead.firstName ?? null,
+            source: `backfill_${signal}`,
+          },
+          timestamp: ts,
+        });
+        stampedSummary.push({
+          email: lead.email,
+          signal,
+          url: apiReport.url,
+        });
+      } else {
+        noReport += 1;
+        stampedSummary.push({ email: lead.email, signal, url: null });
+      }
+
+      await ctx.db.patch(lead._id, {
+        firstEngagedAt: ts,
+        lastEngagedAt: ts,
+        engagementCount: (lead.engagementCount ?? 0) + 1,
+      });
+      stamped += 1;
+    }
+
+    return {
+      stamped,
+      alreadyEngaged,
+      notApiSourced,
+      noReport,
+      stampedSummary,
+    };
+  },
+});
+
+/**
  * One-shot: pause every active emailEnrollment whose lead has been API-
  * targeted (`sources.includes("api_outbound")`). Cleans up the consent
  * violation caused by the historic `runReportGeneration` bug that promoted
