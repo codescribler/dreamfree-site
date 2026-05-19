@@ -31,7 +31,8 @@ const EVENT_LABELS: Record<string, string> = {
   outbound_report_viewed: "Opened their report",
 };
 
-function timeAgo(timestamp: number): string {
+function timeAgo(timestamp: number | undefined): string {
+  if (!timestamp) return "—";
   const seconds = Math.floor((Date.now() - timestamp) / 1000);
   if (seconds < 60) return "just now";
   const minutes = Math.floor(seconds / 60);
@@ -42,9 +43,93 @@ function timeAgo(timestamp: number): string {
   return `${days}d ago`;
 }
 
+function isEngaged(lead: Doc<"leads">): boolean {
+  return (
+    lead.sources.includes("api_outbound") && lead.firstEngagedAt != null
+  );
+}
+
+type LeadStub = {
+  _id: string;
+  email: string;
+  firstName?: string;
+  name?: string;
+};
+
+type EventProps = Record<string, unknown>;
+
+function getString(p: EventProps, key: string): string | null {
+  const v = p[key];
+  return typeof v === "string" ? v : null;
+}
+
+function getNumber(p: EventProps, key: string): number | null {
+  const v = p[key];
+  return typeof v === "number" ? v : null;
+}
+
+function activityLine(
+  event: Doc<"events">,
+  leadStub: LeadStub | null,
+): { who: string; what: string } {
+  const props = (event.properties ?? {}) as EventProps;
+  const whoFromProps =
+    getString(props, "firstName") ?? getString(props, "email");
+  const who =
+    whoFromProps ??
+    (leadStub
+      ? leadStub.firstName ?? leadStub.name ?? leadStub.email
+      : "Anonymous");
+
+  switch (event.type) {
+    case "outbound_report_viewed": {
+      const url = getString(props, "url");
+      const viewCount = getNumber(props, "viewCount") ?? 1;
+      const target = url ?? event.path;
+      return {
+        who,
+        what: `opened their report for ${target.replace(/^https?:\/\//, "").replace(/\/$/, "")} — view #${viewCount}`,
+      };
+    }
+    case "scroll_depth": {
+      const depth = getNumber(props, "depth");
+      return {
+        who,
+        what: depth != null ? `scrolled ${depth}% on ${event.path}` : `scrolled on ${event.path}`,
+      };
+    }
+    case "page_view":
+      return { who, what: `viewed ${event.path}` };
+    case "cta_click": {
+      const label = getString(props, "label");
+      return {
+        who,
+        what: label ? `clicked "${label}" on ${event.path}` : `clicked a CTA on ${event.path}`,
+      };
+    }
+    case "form_submission": {
+      const formType = getString(props, "type");
+      return {
+        who,
+        what: formType ? `submitted the ${formType} form` : `submitted a form on ${event.path}`,
+      };
+    }
+    case "signal_score_started":
+      return { who, what: "started a Signal Score audit" };
+    case "signal_score_completed":
+      return { who, what: "completed a Signal Score audit" };
+    default:
+      return { who, what: `${event.type} on ${event.path}` };
+  }
+}
+
 export default function DashboardPage() {
   const leads = useQuery(api.leads.list, { limit: 50 });
-  const recentEvents = useQuery(api.events.recentActivity, { limit: 20 });
+  const recentActivity = useQuery(api.events.recentActivity, { limit: 25 });
+  const engaged = useQuery(api.leads.listOutbound, {
+    filter: "engaged",
+    limit: 10,
+  });
 
   return (
     <div className="space-y-8">
@@ -69,6 +154,55 @@ export default function DashboardPage() {
           }
         />
       </div>
+
+      {/* Engaged Outbound — highest-priority panel */}
+      {engaged && engaged.length > 0 ? (
+        <section>
+          <h2 className="mb-4 text-lg font-bold text-charcoal">
+            🔥 Clicked through — {engaged.length} engaged outbound{" "}
+            {engaged.length === 1 ? "lead" : "leads"}
+          </h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {engaged.map(({ lead, report, apiKeyName }) => (
+              <Link
+                key={lead._id}
+                href={`/dashboard/leads/${lead._id}`}
+                className="block rounded-xl border border-teal/40 bg-white p-4 shadow-sm ring-1 ring-teal/15 transition-colors hover:border-teal hover:ring-teal/30"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-charcoal">
+                      {lead.firstName || lead.name || lead.email}
+                    </p>
+                    <p className="truncate text-xs text-muted">{lead.email}</p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-teal/15 px-2 py-0.5 text-xs font-semibold text-teal">
+                    ×{lead.engagementCount ?? 1}
+                  </span>
+                </div>
+                {report ? (
+                  <p className="mt-2 truncate text-sm text-charcoal">
+                    {report.url
+                      .replace(/^https?:\/\//, "")
+                      .replace(/\/$/, "")}
+                    {report.status === "success" ? (
+                      <span className="ml-2 font-mono text-xs text-muted">
+                        {report.overallScore}/100
+                      </span>
+                    ) : null}
+                  </p>
+                ) : null}
+                <div className="mt-2 flex items-center justify-between text-xs text-muted">
+                  <span>
+                    Last opened {timeAgo(lead.lastEngagedAt ?? undefined)}
+                  </span>
+                  {apiKeyName ? <span>{apiKeyName}</span> : null}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* Lead Table */}
       <section>
@@ -107,14 +241,12 @@ export default function DashboardPage() {
                   </tr>
                 ) : (
                   leads.map((lead: Doc<"leads">) => {
-                    const engaged =
-                      lead.leadType === "outbound" &&
-                      lead.firstEngagedAt != null;
+                    const engagedRow = isEngaged(lead);
                     return (
                       <tr
                         key={lead._id}
                         className={`border-b border-border last:border-b-0 hover:bg-warm-grey/30 ${
-                          engaged ? "bg-teal/5" : ""
+                          engagedRow ? "bg-teal/5" : ""
                         }`}
                       >
                         <td className="px-4 py-3">
@@ -136,7 +268,7 @@ export default function DashboardPage() {
                                 {SOURCE_LABELS[src] ?? src}
                               </span>
                             ))}
-                            {engaged ? (
+                            {engagedRow ? (
                               <span className="inline-block rounded-full bg-teal/15 px-2 py-0.5 text-xs font-semibold text-teal">
                                 Outbound — Viewed ×{lead.engagementCount ?? 1}
                               </span>
@@ -171,24 +303,22 @@ export default function DashboardPage() {
           Recent Activity
         </h2>
         <div className="space-y-2">
-          {recentEvents === undefined ? (
+          {recentActivity === undefined ? (
             <p className="text-sm text-muted">Loading...</p>
-          ) : recentEvents.length === 0 ? (
+          ) : recentActivity.events.length === 0 ? (
             <p className="text-sm text-muted">
               No activity yet. Events will appear as visitors browse the site.
             </p>
           ) : (
-            recentEvents.map((event: Doc<"events">) => {
+            recentActivity.events.map((event: Doc<"events">) => {
               const isClickThrough = event.type === "outbound_report_viewed";
-              return (
-                <div
-                  key={event._id}
-                  className={`flex items-center gap-3 rounded-lg border bg-white px-4 py-3 text-sm ${
-                    isClickThrough
-                      ? "border-teal/40 ring-1 ring-teal/20"
-                      : "border-border"
-                  }`}
-                >
+              const leadStub = event.leadId
+                ? recentActivity.leadsByLeadId[event.leadId] ?? null
+                : null;
+              const { who, what } = activityLine(event, leadStub);
+
+              const rowBody = (
+                <>
                   <span
                     className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ${
                       isClickThrough
@@ -198,10 +328,33 @@ export default function DashboardPage() {
                   >
                     {EVENT_LABELS[event.type] ?? event.type}
                   </span>
-                  <span className="truncate text-charcoal">{event.path}</span>
+                  <span className="min-w-0 flex-1 truncate text-charcoal">
+                    <span className="font-medium">{who}</span>
+                    <span className="text-muted"> {what}</span>
+                  </span>
                   <span className="ml-auto shrink-0 text-xs text-muted">
                     {timeAgo(event.timestamp)}
                   </span>
+                </>
+              );
+
+              const className = `flex items-center gap-3 rounded-lg border bg-white px-4 py-3 text-sm ${
+                isClickThrough
+                  ? "border-teal/40 ring-1 ring-teal/20"
+                  : "border-border"
+              }`;
+
+              return leadStub ? (
+                <Link
+                  key={event._id}
+                  href={`/dashboard/leads/${leadStub._id}`}
+                  className={`${className} hover:bg-warm-grey/30`}
+                >
+                  {rowBody}
+                </Link>
+              ) : (
+                <div key={event._id} className={className}>
+                  {rowBody}
                 </div>
               );
             })

@@ -62,6 +62,29 @@ describe("leads.list visibility", () => {
     expect(returned).toContain(ids.outboundEngagedId);
     expect(returned).toContain(ids.outboundUnengagedId);
   });
+
+  test("hides a wrongly-promoted API lead (leadType:'inbound' but sources includes 'api_outbound')", async () => {
+    // This is the historic-bug scenario: `submitSignalScore` ran inside
+    // `runReportGeneration` for an API report, promoted leadType to
+    // "inbound", and added "signal_score" to sources. The lead now looks
+    // inbound by leadType but came in via the API. Source-based filter
+    // catches it; leadType-based filter would not.
+    const t = convexTest(schema, modules);
+    const wronglyPromotedId = await t.run(async (ctx) => {
+      return await ctx.db.insert("leads", {
+        email: "buggy@x.com",
+        anonymousIds: [],
+        sources: ["api_outbound", "signal_score"],
+        lastSeenAt: Date.now(),
+        createdAt: Date.now() - 5_000,
+        leadType: "inbound",
+        consentedAt: Date.now() - 5_000,
+      });
+    });
+
+    const rows = await t.query(api.leads.list, {});
+    expect(rows.map((r) => r._id)).not.toContain(wronglyPromotedId);
+  });
 });
 
 describe("leads.listOutbound", () => {
@@ -190,6 +213,108 @@ describe("leads.listOutbound", () => {
 
     const pending = await t.query(api.leads.listOutbound, { filter: "pending" });
     expect(pending.map((r) => r.lead.email)).toEqual(["pen@x.com"]);
+  });
+});
+
+describe("leads.markEngaged", () => {
+  test("stamps engagement on the lead, viewCount on the latest API report, and emits an event", async () => {
+    const t = convexTest(schema, modules);
+
+    const { leadId, reportId } = await t.run(async (ctx) => {
+      const keyId = await ctx.db.insert("apiKeys", {
+        name: "k",
+        keyHash: "k",
+        createdAt: Date.now(),
+      });
+      const leadId = await ctx.db.insert("leads", {
+        email: "manual@x.com",
+        firstName: "Manual",
+        anonymousIds: [],
+        sources: ["api_outbound"],
+        lastSeenAt: Date.now(),
+        createdAt: Date.now() - 1_000,
+        leadType: "outbound",
+      });
+      const EMPTY = {
+        score: 0,
+        summary: "",
+        analysis: "",
+        businessImpact: "",
+        recommendations: [],
+      };
+      const ELEMENTS = {
+        character: EMPTY,
+        problem: EMPTY,
+        guide: EMPTY,
+        plan: EMPTY,
+        cta: EMPTY,
+        stakes: EMPTY,
+        transformation: EMPTY,
+      };
+      const reportId = await ctx.db.insert("signalReports", {
+        leadId,
+        anonymousId: "",
+        url: "https://manual.test",
+        customerDescription: "x",
+        overallScore: 70,
+        gruntTest: { pass: true, explanation: "" },
+        elements: ELEMENTS,
+        quickWin: "",
+        strengths: [],
+        fullSummary: "",
+        status: "success",
+        accessLevel: "verified",
+        verifyCode: "",
+        verifyToken: "",
+        createdAt: Date.now() - 500,
+        createdViaApiKeyId: keyId,
+      });
+      return { leadId, reportId };
+    });
+
+    const result = await t.mutation(api.leads.markEngaged, { leadId });
+    expect(result.ok).toBe(true);
+    expect(result.alreadyEngaged).toBe(false);
+
+    const lead = await t.run((ctx) => ctx.db.get(leadId));
+    expect(lead?.firstEngagedAt).toBeTypeOf("number");
+    expect(lead?.engagementCount).toBe(1);
+
+    const report = await t.run((ctx) => ctx.db.get(reportId));
+    expect(report?.firstViewedAt).toBeTypeOf("number");
+    expect(report?.viewCount).toBe(1);
+
+    const events = await t.run((ctx) =>
+      ctx.db.query("events").collect(),
+    );
+    const engagementEvent = events.find(
+      (e) => e.type === "outbound_report_viewed",
+    );
+    expect(engagementEvent).toBeDefined();
+    expect(engagementEvent?.properties).toMatchObject({
+      source: "manual_admin",
+      url: "https://manual.test",
+      email: "manual@x.com",
+    });
+  });
+
+  test("reports alreadyEngaged=true on a second call", async () => {
+    const t = convexTest(schema, modules);
+    const leadId = await t.run(async (ctx) => {
+      return await ctx.db.insert("leads", {
+        email: "double@x.com",
+        anonymousIds: [],
+        sources: ["api_outbound"],
+        lastSeenAt: Date.now(),
+        createdAt: Date.now(),
+        leadType: "outbound",
+        firstEngagedAt: Date.now() - 1_000,
+      });
+    });
+
+    const result = await t.mutation(api.leads.markEngaged, { leadId });
+    expect(result.ok).toBe(true);
+    expect(result.alreadyEngaged).toBe(true);
   });
 });
 

@@ -102,6 +102,17 @@ export const runReportGeneration = internalAction({
     anonymousId: v.string(),
     verifyCode: v.string(),
     verifyToken: v.string(),
+    // When true, skip the inbound-flow side effects:
+    //   - the "your report is ready" email to the visitor (API caller emails
+    //     the prospect themselves)
+    //   - submitSignalScore (which would add `signal_score` to sources and
+    //     promote leadType outbound→inbound — neither is correct for an
+    //     API-generated report)
+    //   - tryEnrolFromReport (no marketing consent from an API-only lead)
+    // We still send the admin notification so Daniel sees the new report.
+    // Optional + defaults to false to keep older callers (and existing
+    // scheduled functions still in the queue) working unchanged.
+    isApiReport: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const { system, user } = buildSignalPrompt(
@@ -156,19 +167,11 @@ export const runReportGeneration = internalAction({
       fullSummary: result.fullSummary,
     });
 
-    // Fire emails + form submission AFTER the report is patched
-    // so any retries / opens land on the complete report.
-    const emailResults = await Promise.allSettled([
-      ctx.runAction(api.emails.sendSignalScoreToVisitor, {
-        firstName: args.firstName,
-        email: args.email,
-        url: args.url,
-        overallScore,
-        gruntTestPass: result.gruntTest.pass,
-        reportId: args.reportId as string,
-        verifyCode: args.verifyCode,
-        verifyToken: args.verifyToken,
-      }),
+    const isApiReport = args.isApiReport === true;
+
+    // Admin notification fires for every successful report — including API
+    // ones — so Daniel sees the new audit in his inbox regardless of source.
+    const adminEmailTasks: Promise<unknown>[] = [
       ctx.runAction(api.emails.sendSignalScoreToAdmin, {
         firstName: args.firstName,
         email: args.email,
@@ -185,46 +188,76 @@ export const runReportGeneration = internalAction({
           transformation: result.elements.transformation.score,
         },
       }),
-      ctx.runMutation(api.formSubmissions.submitSignalScore, {
-        url: args.url,
-        customerDescription: args.customerDescription,
-        firstName: args.firstName,
-        email: args.email,
-        score: overallScore,
-        reportId: args.reportId as string,
-        anonymousId: args.anonymousId,
-      }),
-    ]);
+    ];
+
+    // Inbound-only side effects: the magic-link email to the prospect, and
+    // the `submitSignalScore` mutation that records a formSubmission and
+    // promotes the lead to inbound. NEITHER is appropriate for API-created
+    // reports — the caller emails the prospect themselves, and the prospect
+    // never filled in a form to consent.
+    if (!isApiReport) {
+      adminEmailTasks.push(
+        ctx.runAction(api.emails.sendSignalScoreToVisitor, {
+          firstName: args.firstName,
+          email: args.email,
+          url: args.url,
+          overallScore,
+          gruntTestPass: result.gruntTest.pass,
+          reportId: args.reportId as string,
+          verifyCode: args.verifyCode,
+          verifyToken: args.verifyToken,
+        }),
+        ctx.runMutation(api.formSubmissions.submitSignalScore, {
+          url: args.url,
+          customerDescription: args.customerDescription,
+          firstName: args.firstName,
+          email: args.email,
+          score: overallScore,
+          reportId: args.reportId as string,
+          anonymousId: args.anonymousId,
+        }),
+      );
+    }
+
+    const emailResults = await Promise.allSettled(adminEmailTasks);
 
     emailResults.forEach((r, i) => {
       if (r.status === "rejected") {
-        const labels = ["Visitor email", "Admin email", "Form submission"];
-        console.error(`${labels[i]} failed`, r.reason);
+        const labels = isApiReport
+          ? ["Admin email"]
+          : ["Admin email", "Visitor email", "Form submission"];
+        console.error(`${labels[i] ?? "task " + i} failed`, r.reason);
       }
     });
 
-    // Attempt to enrol the lead in the email campaign sequence (post-report).
-    // Failures here must not affect the report itself — log only.
-    try {
-      const enrollmentId = await ctx.runMutation(
-        internal.emailCampaigns.tryEnrolFromReport,
-        { reportId: args.reportId },
-      );
-      if (enrollmentId) {
-        await ctx.scheduler.runAfter(
-          0,
-          internal.emailCampaignsAction.generateSequence,
-          { enrollmentId },
+    // Attempt to enrol the lead in the marketing email campaign. SKIP for
+    // API-created reports — the prospect did not opt in to marketing emails
+    // by being POSTed to /api/v1/signal-reports, only by submitting an
+    // inbound form. `tryEnrolFromReport` also defends against this via its
+    // sources check, but skipping at the call site avoids the log noise
+    // and any future drift in that guard.
+    if (!isApiReport) {
+      try {
+        const enrollmentId = await ctx.runMutation(
+          internal.emailCampaigns.tryEnrolFromReport,
+          { reportId: args.reportId },
         );
-        console.log(
-          `Email campaign enrolment scheduled for report ${args.reportId} → enrollment ${enrollmentId}`,
+        if (enrollmentId) {
+          await ctx.scheduler.runAfter(
+            0,
+            internal.emailCampaignsAction.generateSequence,
+            { enrollmentId },
+          );
+          console.log(
+            `Email campaign enrolment scheduled for report ${args.reportId} → enrollment ${enrollmentId}`,
+          );
+        }
+      } catch (err) {
+        console.error(
+          `Email campaign enrolment failed for report ${args.reportId}:`,
+          err,
         );
       }
-    } catch (err) {
-      console.error(
-        `Email campaign enrolment failed for report ${args.reportId}:`,
-        err,
-      );
     }
 
     console.log(
