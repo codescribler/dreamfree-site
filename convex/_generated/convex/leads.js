@@ -101,18 +101,38 @@ export const linkAnonymousEvents = internalMutation({
         }
     },
 });
-/** List all leads, newest first. */
+/** List leads, newest first.
+ *
+ * `visibility`:
+ *   - "topLevel" (default) — inbound leads + outbound leads with firstEngagedAt set.
+ *   - "all" — every lead, including unengaged outbound.
+ *
+ * Strategy: fetch a 3× sample by createdAt desc and JS-filter. At current
+ * lead volume this is cheaper than a compound index and matches the pattern
+ * used by countByStatus.
+ */
 export const list = query({
     args: {
         limit: v.optional(v.number()),
+        visibility: v.optional(v.union(v.literal("topLevel"), v.literal("all"))),
     },
     handler: async (ctx, args) => {
         const limit = args.limit ?? 50;
-        return await ctx.db
+        const visibility = args.visibility ?? "topLevel";
+        if (visibility === "all") {
+            return await ctx.db
+                .query("leads")
+                .withIndex("by_createdAt")
+                .order("desc")
+                .take(limit);
+        }
+        const sample = await ctx.db
             .query("leads")
             .withIndex("by_createdAt")
             .order("desc")
-            .take(limit);
+            .take(Math.max(limit * 3, 200));
+        const filtered = sample.filter((l) => l.leadType !== "outbound" || l.firstEngagedAt != null);
+        return filtered.slice(0, limit);
     },
 });
 /** Get a single lead by ID. */
@@ -205,5 +225,73 @@ export const upsertOutboundLeadPublic = mutation({
     },
     handler: async (ctx, args) => {
         return await ctx.runMutation(internal.leads.upsertOutboundLead, args);
+    },
+});
+/**
+ * List outbound (API-generated) leads with their most-recent API report
+ * joined. Engaged rows sort first, then by createdAt desc.
+ *
+ * Used by the /dashboard/api-leads page. Filter:
+ *   - "all" (default): every outbound lead
+ *   - "engaged":       firstEngagedAt set
+ *   - "pending":       firstEngagedAt not set
+ */
+export const listOutbound = query({
+    args: {
+        filter: v.optional(v.union(v.literal("all"), v.literal("engaged"), v.literal("pending"))),
+        limit: v.optional(v.number()),
+    },
+    handler: async (ctx, args) => {
+        const filter = args.filter ?? "all";
+        const limit = args.limit ?? 200;
+        const outbound = await ctx.db
+            .query("leads")
+            .withIndex("by_leadType", (q) => q.eq("leadType", "outbound"))
+            .take(500);
+        const narrowed = outbound.filter((l) => {
+            if (filter === "engaged")
+                return l.firstEngagedAt != null;
+            if (filter === "pending")
+                return l.firstEngagedAt == null;
+            return true;
+        });
+        narrowed.sort((a, b) => {
+            const aEng = a.firstEngagedAt;
+            const bEng = b.firstEngagedAt;
+            if (aEng != null && bEng != null)
+                return bEng - aEng;
+            if (aEng != null)
+                return -1;
+            if (bEng != null)
+                return 1;
+            return b.createdAt - a.createdAt;
+        });
+        const sliced = narrowed.slice(0, limit);
+        return await Promise.all(sliced.map(async (lead) => {
+            const reports = await ctx.db
+                .query("signalReports")
+                .withIndex("by_leadId", (q) => q.eq("leadId", lead._id))
+                .order("desc")
+                .take(20);
+            const apiReports = reports.filter((r) => r.createdViaApiKeyId != null);
+            const report = apiReports[0] ?? null;
+            let apiKeyName = null;
+            if (report?.createdViaApiKeyId) {
+                const key = await ctx.db.get(report.createdViaApiKeyId);
+                apiKeyName = key?.name ?? null;
+            }
+            return { lead, report, apiKeyName };
+        }));
+    },
+});
+/** Count of outbound leads in the system (engaged + unengaged). */
+export const countOutbound = query({
+    args: {},
+    handler: async (ctx) => {
+        const rows = await ctx.db
+            .query("leads")
+            .withIndex("by_leadType", (q) => q.eq("leadType", "outbound"))
+            .take(2000);
+        return rows.length;
     },
 });

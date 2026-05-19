@@ -21,7 +21,7 @@ export const getActivity = query({
     },
     handler: async (ctx, args) => {
         const { since, until } = args;
-        const [leads, events, formSubmissions, signalReports, contentPlans, callbackRequests, demoRequests, emailEnrollments, emailSends, tags, leadTags,] = await Promise.all([
+        const [leadsRaw, events, formSubmissions, signalReportsRaw, contentPlans, callbackRequests, demoRequests, emailEnrollments, emailSends, tags, leadTags,] = await Promise.all([
             windowQuery(ctx, "leads", since, until),
             windowQuery(ctx, "events", since, until),
             windowQuery(ctx, "formSubmissions", since, until),
@@ -34,6 +34,12 @@ export const getActivity = query({
             windowQuery(ctx, "tags", since, until),
             windowQuery(ctx, "leadTags", since, until),
         ]);
+        // Visibility filters — see
+        // docs/superpowers/specs/2026-05-18-outbound-lead-visibility-design.md
+        // A lead is visible if it is inbound, or outbound-and-engaged.
+        // An API report is visible if it has been viewed.
+        const leads = leadsRaw.filter((l) => l.leadType !== "outbound" || l.firstEngagedAt != null);
+        const signalReports = signalReportsRaw.filter((r) => r.createdViaApiKeyId == null || r.firstViewedAt != null);
         const leadIds = new Set();
         const collectLeadId = (r) => {
             if (r.leadId)
@@ -52,8 +58,13 @@ export const getActivity = query({
         const leadsReferenced = {};
         await Promise.all(Array.from(leadIds).map(async (id) => {
             const doc = await ctx.db.get(id);
-            if (doc)
-                leadsReferenced[id] = doc;
+            if (!doc)
+                return;
+            // Re-apply the visibility rule when resolving — never leak a
+            // dropped lead via the join map.
+            if (doc.leadType === "outbound" && doc.firstEngagedAt == null)
+                return;
+            leadsReferenced[id] = doc;
         }));
         return {
             windowStart: since,
