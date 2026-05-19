@@ -140,7 +140,21 @@ export default function LeadDetailPage() {
               <p className="mt-0.5 text-sm text-muted">{lead.phone}</p>
             )}
             {lead.website && (
-              <p className="mt-0.5 text-sm text-muted">{lead.website}</p>
+              <p className="mt-0.5 text-sm">
+                <a
+                  href={
+                    /^https?:\/\//i.test(lead.website)
+                      ? lead.website
+                      : `https://${lead.website}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-teal hover:underline"
+                >
+                  {prettyHost(lead.website)}
+                  <span aria-hidden> ↗</span>
+                </a>
+              </p>
             )}
           </div>
           <div className="text-right text-sm text-muted">
