@@ -16,6 +16,7 @@ const EVENT_LABELS: Record<string, string> = {
   signal_score_started: "Started Signal Score",
   signal_score_completed: "Completed Signal Score",
   cta_click: "Clicked CTA",
+  outbound_report_viewed: "Opened their report",
 };
 
 const EVENT_COLOURS: Record<string, string> = {
@@ -25,6 +26,7 @@ const EVENT_COLOURS: Record<string, string> = {
   signal_score_started: "bg-amber-100 text-amber-700",
   signal_score_completed: "bg-amber-100 text-amber-700",
   cta_click: "bg-purple-100 text-purple-700",
+  outbound_report_viewed: "bg-teal/20 text-teal",
 };
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -32,6 +34,8 @@ const SOURCE_LABELS: Record<string, string> = {
   email_capture: "Newsletter",
   contact_form: "Contact",
   signal_score: "Signal Score",
+  api_outbound: "Outbound (API)",
+  demo_request: "Demo Request",
 };
 
 const SOURCE_COLOURS: Record<string, string> = {
@@ -39,7 +43,38 @@ const SOURCE_COLOURS: Record<string, string> = {
   email_capture: "bg-blue-100 text-blue-700",
   contact_form: "bg-green-100 text-green-700",
   signal_score: "bg-amber-100 text-amber-700",
+  api_outbound: "bg-slate-100 text-slate-700",
+  demo_request: "bg-indigo-100 text-indigo-700",
 };
+
+function prettyHost(url: string | undefined | null): string | null {
+  if (!url) return null;
+  return url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+}
+
+function eventTarget(event: Doc<"events">): string | null {
+  const props = (event.properties ?? {}) as Record<string, unknown>;
+  const url = typeof props.url === "string" ? props.url : null;
+  if (url) return prettyHost(url);
+  // Don't show opaque /report/<id> paths — the recentActivity query enriches
+  // these server-side with the audited URL; in the lead-detail page we use
+  // listByLead which doesn't, so suppress to avoid showing the id.
+  if (event.path.startsWith("/report/")) return null;
+  return event.path;
+}
+
+function eventDetail(event: Doc<"events">): string | null {
+  const props = (event.properties ?? {}) as Record<string, unknown>;
+  if (event.type === "scroll_depth") {
+    const depth = typeof props.depth === "number" ? props.depth : null;
+    if (depth != null) return `${depth}%`;
+  }
+  if (event.type === "outbound_report_viewed") {
+    const viewCount = typeof props.viewCount === "number" ? props.viewCount : 1;
+    return `view #${viewCount}`;
+  }
+  return null;
+}
 
 function formatDate(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString("en-GB", {
@@ -70,6 +105,10 @@ export default function LeadDetailPage() {
   const events = useQuery(api.events.listByLead, { leadId, limit: 100 });
   const submissions = useQuery(api.formSubmissions.listByLead, { leadId });
   const reports = useQuery(api.signalReports.listByLead, { leadId });
+  const demoRequests = useQuery(api.demoRequests.listForLead, { leadId });
+  const callbackRequests = useQuery(api.callbackRequests.listForLead, {
+    leadId,
+  });
 
   if (lead === undefined) {
     return <p className="py-12 text-center text-muted">Loading...</p>;
@@ -133,6 +172,55 @@ export default function LeadDetailPage() {
             </span>
           </div>
         )}
+
+        {/* Engagement summary — quick at-a-glance signals for lead scoring */}
+        {(events && events.length > 0) ||
+        (demoRequests && demoRequests.length > 0) ||
+        (callbackRequests && callbackRequests.length > 0) ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {lead.engagementCount && lead.engagementCount > 0 ? (
+              <span className="inline-block rounded-full bg-teal/15 px-3 py-1 text-xs font-semibold text-teal">
+                Report views ×{lead.engagementCount}
+              </span>
+            ) : null}
+            {(() => {
+              if (!events) return null;
+              let maxScroll = 0;
+              for (const e of events) {
+                if (e.type !== "scroll_depth") continue;
+                const depth = (e.properties as { depth?: unknown })?.depth;
+                if (typeof depth === "number" && depth > maxScroll) {
+                  maxScroll = depth;
+                }
+              }
+              return maxScroll >= 25 ? (
+                <span className="inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                  Read {maxScroll}%
+                </span>
+              ) : null;
+            })()}
+            {demoRequests && demoRequests.length > 0 ? (
+              <span className="inline-block rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-700">
+                Demo request ×{demoRequests.length}
+              </span>
+            ) : null}
+            {callbackRequests && callbackRequests.length > 0 ? (
+              <span className="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                Callback ×{callbackRequests.length}
+              </span>
+            ) : null}
+            {submissions && submissions.length > 0 ? (
+              <span className="inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                Forms ×{submissions.length}
+              </span>
+            ) : null}
+            {events && events.length > 0 ? (
+              <span className="inline-block rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                {events.length} event{events.length === 1 ? "" : "s"}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <EmailCampaignSection leadId={lead._id} email={lead.email} />
@@ -146,6 +234,100 @@ export default function LeadDetailPage() {
           <div className="space-y-3">
             {reports.map((report: Doc<"signalReports">) => (
               <ReportRow key={report._id} report={report} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Demo Requests */}
+      {demoRequests && demoRequests.length > 0 && (
+        <section>
+          <h2 className="mb-4 text-lg font-bold text-charcoal">
+            Demo Requests
+          </h2>
+          <div className="space-y-3">
+            {demoRequests.map((req: Doc<"demoRequests">) => (
+              <div
+                key={req._id}
+                className="rounded-xl border border-border bg-white p-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-charcoal">
+                      {req.businessName || req.firstName || req.email}
+                      {req.industry ? (
+                        <span className="ml-2 text-sm font-normal text-muted">
+                          · {req.industry}
+                        </span>
+                      ) : null}
+                    </p>
+                    {req.website ? (
+                      <p className="mt-1 truncate font-mono text-xs text-charcoal">
+                        {prettyHost(req.website)}
+                      </p>
+                    ) : null}
+                  </div>
+                  <span className="shrink-0 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                    {req.status}
+                  </span>
+                </div>
+                {req.mainGoal ? (
+                  <p className="mt-2 text-xs text-muted">
+                    <span className="font-medium text-charcoal">Goal:</span>{" "}
+                    {req.mainGoal}
+                  </p>
+                ) : null}
+                {req.idealCustomer ? (
+                  <p className="mt-1 text-xs text-muted">
+                    <span className="font-medium text-charcoal">Ideal customer:</span>{" "}
+                    {req.idealCustomer}
+                  </p>
+                ) : null}
+                <div className="mt-3 flex items-center justify-between gap-2 text-xs text-muted">
+                  <span>Requested {formatDate(req.createdAt)}</span>
+                  {req.demoUrl ? (
+                    <a
+                      href={req.demoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-md bg-indigo-50 px-2 py-1 font-semibold text-indigo-700 hover:bg-indigo-100"
+                    >
+                      ↗ {prettyHost(req.demoUrl)}
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Callback Requests */}
+      {callbackRequests && callbackRequests.length > 0 && (
+        <section>
+          <h2 className="mb-4 text-lg font-bold text-charcoal">
+            Callback Requests
+          </h2>
+          <div className="space-y-3">
+            {callbackRequests.map((req: Doc<"callbackRequests">) => (
+              <div
+                key={req._id}
+                className="rounded-xl border border-border bg-white p-4"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-charcoal">
+                      📞 {req.phone}
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      Requested {formatDate(req.createdAt)}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                    {req.status}
+                  </span>
+                </div>
+              </div>
             ))}
           </div>
         </section>
@@ -195,22 +377,38 @@ export default function LeadDetailPage() {
           <p className="text-sm text-muted">No activity recorded yet.</p>
         ) : (
           <div className="space-y-2">
-            {events.map((event: Doc<"events">) => (
-              <div
-                key={event._id}
-                className="flex items-center gap-3 rounded-lg border border-border bg-white px-4 py-3 text-sm"
-              >
-                <span
-                  className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ${EVENT_COLOURS[event.type] ?? "bg-gray-100 text-gray-600"}`}
+            {events.map((event: Doc<"events">) => {
+              const target = eventTarget(event);
+              const detail = eventDetail(event);
+              return (
+                <div
+                  key={event._id}
+                  className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-white px-4 py-3 text-sm"
                 >
-                  {EVENT_LABELS[event.type] ?? event.type}
-                </span>
-                <span className="truncate text-charcoal">{event.path}</span>
-                <span className="ml-auto shrink-0 text-xs text-muted">
-                  {timeAgo(event.timestamp)}
-                </span>
-              </div>
-            ))}
+                  <span
+                    className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ${EVENT_COLOURS[event.type] ?? "bg-gray-100 text-gray-600"}`}
+                  >
+                    {EVENT_LABELS[event.type] ?? event.type}
+                  </span>
+                  {detail ? (
+                    <span className="shrink-0 text-xs font-semibold text-charcoal">
+                      {detail}
+                    </span>
+                  ) : null}
+                  {target ? (
+                    <span
+                      className="min-w-0 truncate font-mono text-xs text-charcoal"
+                      title={target}
+                    >
+                      {target}
+                    </span>
+                  ) : null}
+                  <span className="ml-auto shrink-0 text-xs text-muted">
+                    {timeAgo(event.timestamp)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
       </section>

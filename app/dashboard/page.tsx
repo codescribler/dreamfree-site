@@ -146,7 +146,12 @@ function activityLine(
 }
 
 export default function DashboardPage() {
-  const leads = useQuery(api.leads.list, { limit: 50 });
+  const leadsWithEngagement = useQuery(api.leads.listWithEngagement, {
+    limit: 50,
+  });
+  const leads = leadsWithEngagement?.leads;
+  const latestEventByLeadId = leadsWithEngagement?.latestEventByLeadId ?? {};
+  const engagementByLeadId = leadsWithEngagement?.engagementByLeadId ?? {};
   const recentActivity = useQuery(api.events.recentActivity, { limit: 25 });
   const engaged = useQuery(api.leads.listOutbound, {
     filter: "engaged",
@@ -264,6 +269,19 @@ export default function DashboardPage() {
                 ) : (
                   leads.map((lead: Doc<"leads">) => {
                     const engagedRow = isEngaged(lead);
+                    const eng = engagementByLeadId[lead._id];
+                    const last = latestEventByLeadId[lead._id] ?? null;
+                    const lastLine = last
+                      ? activityLine(
+                          last,
+                          {
+                            _id: lead._id,
+                            email: lead.email,
+                            firstName: lead.firstName,
+                            name: lead.name,
+                          },
+                        )
+                      : null;
                     return (
                       <tr
                         key={lead._id}
@@ -271,7 +289,7 @@ export default function DashboardPage() {
                           engagedRow ? "bg-teal/5" : ""
                         }`}
                       >
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 align-top">
                           <Link
                             href={`/dashboard/leads/${lead._id}`}
                             className="font-medium text-charcoal hover:text-teal hover:underline"
@@ -279,8 +297,24 @@ export default function DashboardPage() {
                             {lead.firstName || lead.name || "—"}
                           </Link>
                           <div className="text-xs text-muted">{lead.email}</div>
+                          {lastLine && last ? (
+                            <div className="mt-1 truncate text-xs text-muted">
+                              <span className="font-medium text-charcoal">
+                                {lastLine.what}
+                              </span>
+                              {lastLine.target ? (
+                                <>
+                                  {" "}
+                                  <span className="font-mono text-charcoal">
+                                    {lastLine.target}
+                                  </span>
+                                </>
+                              ) : null}
+                              <span> · {timeAgo(last.timestamp)}</span>
+                            </div>
+                          ) : null}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 align-top">
                           <div className="flex flex-wrap gap-1">
                             {lead.sources.map((src) => (
                               <span
@@ -292,12 +326,27 @@ export default function DashboardPage() {
                             ))}
                             {engagedRow ? (
                               <span className="inline-block rounded-full bg-teal/15 px-2 py-0.5 text-xs font-semibold text-teal">
-                                Outbound — Viewed ×{lead.engagementCount ?? 1}
+                                Viewed ×{lead.engagementCount ?? 1}
+                              </span>
+                            ) : null}
+                            {eng?.hasDemoRequest ? (
+                              <span className="inline-block rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                                Demo
+                              </span>
+                            ) : null}
+                            {eng?.hasCallbackRequest ? (
+                              <span className="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                                Callback
+                              </span>
+                            ) : null}
+                            {eng && eng.maxScrollDepth >= 50 ? (
+                              <span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                                Read {eng.maxScrollDepth}%
                               </span>
                             ) : null}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-charcoal">
+                        <td className="px-4 py-3 align-top text-charcoal">
                           {lead.signalScore ? (
                             <span className="font-mono font-semibold">
                               {lead.signalScore}/100
@@ -306,7 +355,7 @@ export default function DashboardPage() {
                             <span className="text-muted">—</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-muted">
+                        <td className="px-4 py-3 align-top text-muted">
                           {timeAgo(lead.createdAt)}
                         </td>
                       </tr>

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 
 export const create = mutation({
   args: {
@@ -15,5 +15,18 @@ export const create = mutation({
       status: "pending",
       createdAt: Date.now(),
     });
+  },
+});
+
+/** All callback requests for a lead, newest first. Used by the lead detail page. */
+export const listForLead = query({
+  args: { leadId: v.id("leads") },
+  handler: async (ctx, args) => {
+    const rows = await ctx.db
+      .query("callbackRequests")
+      .withIndex("by_createdAt")
+      .order("desc")
+      .take(200);
+    return rows.filter((r) => r.leadId === args.leadId);
   },
 });

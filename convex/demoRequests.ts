@@ -219,6 +219,18 @@ export const getById = query({
   },
 });
 
+/** All demo requests for a lead, newest first. Used by the lead detail page. */
+export const listForLead = query({
+  args: { leadId: v.id("leads") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("demoRequests")
+      .withIndex("by_leadId", (q) => q.eq("leadId", args.leadId))
+      .order("desc")
+      .take(50);
+  },
+});
+
 /**
  * Board view for /dashboard/demos: five active columns plus a small
  * archive summary. Requests are pulled most-recently-updated-first within

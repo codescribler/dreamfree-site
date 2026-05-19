@@ -191,9 +191,16 @@ export const getById = query({
     },
 });
 /**
- * Board view for /dashboard/demos: four active columns plus a small
+ * Board view for /dashboard/demos: five active columns plus a small
  * archive summary. Requests are pulled most-recently-updated-first within
  * each column so the freshest action sits at the top.
+ *
+ * Column → status mapping:
+ *   Requested    → "requested"
+ *   In Progress  → "in_progress"
+ *   Ready        → "demo_complete"      (API has deployed; Daniel to review/send)
+ *   Delivered    → "notification_sent"  (Daniel has sent the link to the customer)
+ *   Viewed       → "customer_reviewed"  (customer has seen the demo)
  */
 export const board = query({
     args: {},
@@ -202,14 +209,15 @@ export const board = query({
         rows.sort((a, b) => b.updatedAt - a.updatedAt);
         const requested = rows.filter((r) => r.status === "requested");
         const inProgress = rows.filter((r) => r.status === "in_progress");
-        const delivered = rows.filter((r) => r.status === "demo_complete" || r.status === "notification_sent");
+        const ready = rows.filter((r) => r.status === "demo_complete");
+        const delivered = rows.filter((r) => r.status === "notification_sent");
         const viewed = rows.filter((r) => r.status === "customer_reviewed");
         const archive = {
             followedUp: rows.filter((r) => r.status === "followed_up").length,
             won: rows.filter((r) => r.status === "won").length,
             lost: rows.filter((r) => r.status === "lost").length,
         };
-        return { requested, inProgress, delivered, viewed, archive };
+        return { requested, inProgress, ready, delivered, viewed, archive };
     },
 });
 /** Count of active demo requests for the nav badge (everything not won/lost). */
