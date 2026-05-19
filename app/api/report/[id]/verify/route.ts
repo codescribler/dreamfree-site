@@ -48,6 +48,18 @@ export async function GET(
     });
   }
 
+  // Record engagement for API-created reports. The mutation is a no-op for
+  // inbound reports; we always call it (rather than gating client-side on
+  // createdViaApiKeyId) so the source of truth lives server-side.
+  try {
+    await convex.mutation(api.signalReports.recordEngagement, {
+      reportId: id as Id<"signalReports">,
+    });
+  } catch (err) {
+    // Never block the verify redirect on engagement bookkeeping.
+    console.error("recordEngagement failed", err);
+  }
+
   // Set verification cookie (allowed in Route Handler)
   const response = NextResponse.redirect(new URL(`/report/${id}`, req.url));
   await setVerificationCookie(id, response);
