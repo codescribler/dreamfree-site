@@ -97,14 +97,29 @@ function activityLine(
     }
     case "scroll_depth": {
       const depth = getNumber(props, "depth");
+      const url = getString(props, "url");
+      const onReport = event.path.startsWith("/report/");
       return {
         who,
-        what: depth != null ? `scrolled ${depth}%` : "scrolled",
-        target: event.path,
+        what: depth != null
+          ? onReport
+            ? `scrolled ${depth}% through their report`
+            : `scrolled ${depth}%`
+          : onReport
+            ? "scrolled through their report"
+            : "scrolled",
+        target: url ? prettyHost(url) : event.path,
       };
     }
-    case "page_view":
-      return { who, what: "viewed", target: event.path };
+    case "page_view": {
+      const url = getString(props, "url");
+      const onReport = event.path.startsWith("/report/");
+      return {
+        who,
+        what: onReport ? "viewed their report" : "viewed",
+        target: url ? prettyHost(url) : event.path,
+      };
+    }
     case "cta_click": {
       const label = getString(props, "label");
       return {
