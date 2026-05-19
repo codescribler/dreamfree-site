@@ -40,6 +40,11 @@ export default defineSchema({
         createdAt: v.number(),
         leadType: v.optional(v.union(v.literal("inbound"), v.literal("outbound"))),
         consentedAt: v.optional(v.number()),
+        // Engagement tracking — mirrors firstViewedAt/viewCount aggregated
+        // across the lead's reports. Updated by signalReports.recordEngagement.
+        firstEngagedAt: v.optional(v.number()),
+        lastEngagedAt: v.optional(v.number()),
+        engagementCount: v.optional(v.number()),
     })
         .index("by_email", ["email"])
         .index("by_createdAt", ["createdAt"])
@@ -146,6 +151,10 @@ export default defineSchema({
         }))),
         createdAt: v.number(),
         createdViaApiKeyId: v.optional(v.id("apiKeys")),
+        // Engagement tracking — set when a recipient clicks through to view
+        // an API-generated report. See Plan 2 of the May 12 signal-report-api spec.
+        firstViewedAt: v.optional(v.number()),
+        viewCount: v.optional(v.number()),
     })
         .index("by_leadId", ["leadId"])
         .index("by_anonymousId", ["anonymousId"])
