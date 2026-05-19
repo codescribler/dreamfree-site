@@ -574,3 +574,50 @@ export const getApiResponse = query({
         };
     },
 });
+/**
+ * Record a click-through on an API-created report.
+ *
+ * Stamps firstViewedAt (once) and increments viewCount on the report,
+ * mirrors firstEngagedAt/lastEngagedAt/engagementCount onto the lead,
+ * and emits an `outbound_report_viewed` event so Mission Control and
+ * the admin dashboard surface the engagement.
+ *
+ * No-op for reports that were not created via the API (no
+ * createdViaApiKeyId) and for missing reports — callers fire this
+ * inside a redirect hook where exceptions would break navigation, so
+ * silent failure is the right shape.
+ */
+export const recordEngagement = mutation({
+    args: { reportId: v.id("signalReports") },
+    handler: async (ctx, args) => {
+        const report = await ctx.db.get(args.reportId);
+        if (!report)
+            return null;
+        if (!report.createdViaApiKeyId)
+            return null;
+        const now = Date.now();
+        const nextViewCount = (report.viewCount ?? 0) + 1;
+        await ctx.db.patch(report._id, {
+            firstViewedAt: report.firstViewedAt ?? now,
+            viewCount: nextViewCount,
+        });
+        const lead = await ctx.db.get(report.leadId);
+        if (lead) {
+            await ctx.db.patch(lead._id, {
+                firstEngagedAt: lead.firstEngagedAt ?? now,
+                lastEngagedAt: now,
+                engagementCount: (lead.engagementCount ?? 0) + 1,
+            });
+        }
+        await ctx.db.insert("events", {
+            type: "outbound_report_viewed",
+            anonymousId: "",
+            leadId: report.leadId,
+            sessionId: "",
+            path: `/report/${report._id}`,
+            properties: { reportId: report._id, viewCount: nextViewCount },
+            timestamp: now,
+        });
+        return null;
+    },
+});

@@ -10,6 +10,7 @@ const SOURCE_LABELS: Record<string, string> = {
   email_capture: "Newsletter",
   contact_form: "Contact",
   signal_score: "Signal Score",
+  api_outbound: "Outbound (API)",
 };
 
 const SOURCE_COLOURS: Record<string, string> = {
@@ -17,6 +18,7 @@ const SOURCE_COLOURS: Record<string, string> = {
   email_capture: "bg-blue-100 text-blue-700",
   contact_form: "bg-green-100 text-green-700",
   signal_score: "bg-amber-100 text-amber-700",
+  api_outbound: "bg-slate-100 text-slate-700",
 };
 
 const EVENT_LABELS: Record<string, string> = {
@@ -26,6 +28,7 @@ const EVENT_LABELS: Record<string, string> = {
   signal_score_started: "Started Signal Score",
   signal_score_completed: "Completed Signal Score",
   cta_click: "Clicked CTA",
+  outbound_report_viewed: "Opened their report",
 };
 
 function timeAgo(timestamp: number): string {
@@ -103,46 +106,58 @@ export default function DashboardPage() {
                     </td>
                   </tr>
                 ) : (
-                  leads.map((lead: Doc<"leads">) => (
-                    <tr
-                      key={lead._id}
-                      className="border-b border-border last:border-b-0 hover:bg-warm-grey/30"
-                    >
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/dashboard/leads/${lead._id}`}
-                          className="font-medium text-charcoal hover:text-teal hover:underline"
-                        >
-                          {lead.firstName || lead.name || "—"}
-                        </Link>
-                        <div className="text-xs text-muted">{lead.email}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1">
-                          {lead.sources.map((src) => (
-                            <span
-                              key={src}
-                              className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${SOURCE_COLOURS[src] ?? "bg-gray-100 text-gray-600"}`}
-                            >
-                              {SOURCE_LABELS[src] ?? src}
+                  leads.map((lead: Doc<"leads">) => {
+                    const engaged =
+                      lead.leadType === "outbound" &&
+                      lead.firstEngagedAt != null;
+                    return (
+                      <tr
+                        key={lead._id}
+                        className={`border-b border-border last:border-b-0 hover:bg-warm-grey/30 ${
+                          engaged ? "bg-teal/5" : ""
+                        }`}
+                      >
+                        <td className="px-4 py-3">
+                          <Link
+                            href={`/dashboard/leads/${lead._id}`}
+                            className="font-medium text-charcoal hover:text-teal hover:underline"
+                          >
+                            {lead.firstName || lead.name || "—"}
+                          </Link>
+                          <div className="text-xs text-muted">{lead.email}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1">
+                            {lead.sources.map((src) => (
+                              <span
+                                key={src}
+                                className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${SOURCE_COLOURS[src] ?? "bg-gray-100 text-gray-600"}`}
+                              >
+                                {SOURCE_LABELS[src] ?? src}
+                              </span>
+                            ))}
+                            {engaged ? (
+                              <span className="inline-block rounded-full bg-teal/15 px-2 py-0.5 text-xs font-semibold text-teal">
+                                Outbound — Viewed ×{lead.engagementCount ?? 1}
+                              </span>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-charcoal">
+                          {lead.signalScore ? (
+                            <span className="font-mono font-semibold">
+                              {lead.signalScore}/100
                             </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-charcoal">
-                        {lead.signalScore ? (
-                          <span className="font-mono font-semibold">
-                            {lead.signalScore}/100
-                          </span>
-                        ) : (
-                          <span className="text-muted">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-muted">
-                        {timeAgo(lead.createdAt)}
-                      </td>
-                    </tr>
-                  ))
+                          ) : (
+                            <span className="text-muted">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-muted">
+                          {timeAgo(lead.createdAt)}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -163,20 +178,33 @@ export default function DashboardPage() {
               No activity yet. Events will appear as visitors browse the site.
             </p>
           ) : (
-            recentEvents.map((event: Doc<"events">) => (
-              <div
-                key={event._id}
-                className="flex items-center gap-3 rounded-lg border border-border bg-white px-4 py-3 text-sm"
-              >
-                <span className="shrink-0 rounded-md bg-teal/10 px-2 py-0.5 text-xs font-medium text-teal">
-                  {EVENT_LABELS[event.type] ?? event.type}
-                </span>
-                <span className="truncate text-charcoal">{event.path}</span>
-                <span className="ml-auto shrink-0 text-xs text-muted">
-                  {timeAgo(event.timestamp)}
-                </span>
-              </div>
-            ))
+            recentEvents.map((event: Doc<"events">) => {
+              const isClickThrough = event.type === "outbound_report_viewed";
+              return (
+                <div
+                  key={event._id}
+                  className={`flex items-center gap-3 rounded-lg border bg-white px-4 py-3 text-sm ${
+                    isClickThrough
+                      ? "border-teal/40 ring-1 ring-teal/20"
+                      : "border-border"
+                  }`}
+                >
+                  <span
+                    className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-medium ${
+                      isClickThrough
+                        ? "bg-teal/20 text-teal"
+                        : "bg-teal/10 text-teal"
+                    }`}
+                  >
+                    {EVENT_LABELS[event.type] ?? event.type}
+                  </span>
+                  <span className="truncate text-charcoal">{event.path}</span>
+                  <span className="ml-auto shrink-0 text-xs text-muted">
+                    {timeAgo(event.timestamp)}
+                  </span>
+                </div>
+              );
+            })
           )}
         </div>
       </section>
