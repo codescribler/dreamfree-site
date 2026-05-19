@@ -104,8 +104,17 @@ export const linkAnonymousEvents = internalMutation({
 /** List leads, newest first.
  *
  * `visibility`:
- *   - "topLevel" (default) — inbound leads + outbound leads with firstEngagedAt set.
+ *   - "topLevel" (default) — inbound leads + engaged outbound leads (those who
+ *     clicked through their API report). Hides every lead that has been
+ *     API-targeted but not yet engaged.
  *   - "all" — every lead, including unengaged outbound.
+ *
+ * The visibility predicate keys off `sources.includes("api_outbound")` rather
+ * than `leadType`. Historic bug: an earlier version of `runReportGeneration`
+ * called `submitSignalScore` for every report, which promoted outbound leads
+ * to `leadType: "inbound"` even when they had not consented. `sources` is the
+ * only retroactively-reliable signal of "came via the API". `firstEngagedAt`
+ * comes from `signalReports.recordEngagement` on click-through.
  *
  * Strategy: fetch a 3× sample by createdAt desc and JS-filter. At current
  * lead volume this is cheaper than a compound index and matches the pattern
@@ -131,7 +140,7 @@ export const list = query({
             .withIndex("by_createdAt")
             .order("desc")
             .take(Math.max(limit * 3, 200));
-        const filtered = sample.filter((l) => l.leadType !== "outbound" || l.firstEngagedAt != null);
+        const filtered = sample.filter((l) => !l.sources.includes("api_outbound") || l.firstEngagedAt != null);
         return filtered.slice(0, limit);
     },
 });
@@ -231,8 +240,14 @@ export const upsertOutboundLeadPublic = mutation({
  * List outbound (API-generated) leads with their most-recent API report
  * joined. Engaged rows sort first, then by createdAt desc.
  *
+ * "Outbound" here means `sources.includes("api_outbound")` rather than
+ * `leadType === "outbound"`. Many existing prod leads were wrongly promoted
+ * to leadType:"inbound" by a buggy `submitSignalScore` call inside the
+ * report-generation action; the `api_outbound` source is the retroactively
+ * reliable signal.
+ *
  * Used by the /dashboard/api-leads page. Filter:
- *   - "all" (default): every outbound lead
+ *   - "all" (default): every API-sourced lead
  *   - "engaged":       firstEngagedAt set
  *   - "pending":       firstEngagedAt not set
  */
@@ -244,10 +259,15 @@ export const listOutbound = query({
     handler: async (ctx, args) => {
         const filter = args.filter ?? "all";
         const limit = args.limit ?? 200;
-        const outbound = await ctx.db
+        // No `array contains` index in Convex. Scan most-recent-first and
+        // JS-filter. At current outbound volume this is fine; if it grows past
+        // 5_000 we should denormalise a flag onto the row.
+        const sample = await ctx.db
             .query("leads")
-            .withIndex("by_leadType", (q) => q.eq("leadType", "outbound"))
-            .take(500);
+            .withIndex("by_createdAt")
+            .order("desc")
+            .take(5000);
+        const outbound = sample.filter((l) => l.sources.includes("api_outbound"));
         const narrowed = outbound.filter((l) => {
             if (filter === "engaged")
                 return l.firstEngagedAt != null;
@@ -284,14 +304,75 @@ export const listOutbound = query({
         }));
     },
 });
-/** Count of outbound leads in the system (engaged + unengaged). */
+/** Count of outbound leads in the system (engaged + unengaged).
+ *
+ * "Outbound" = `sources.includes("api_outbound")`. See the explanation on
+ * `listOutbound` for why we don't trust `leadType` here.
+ */
 export const countOutbound = query({
     args: {},
     handler: async (ctx) => {
-        const rows = await ctx.db
-            .query("leads")
-            .withIndex("by_leadType", (q) => q.eq("leadType", "outbound"))
-            .take(2000);
-        return rows.length;
+        const rows = await ctx.db.query("leads").take(5000);
+        return rows.filter((l) => l.sources.includes("api_outbound")).length;
+    },
+});
+/**
+ * Admin-only: mark an outbound lead as engaged when we know (from Vercel
+ * logs, Resend dashboard, or direct customer contact) that they clicked
+ * their report before engagement tracking shipped.
+ *
+ * Stamps firstEngagedAt/lastEngagedAt/engagementCount on the lead and
+ * — if they have a latest API report — firstViewedAt/viewCount on that
+ * report. Emits a synthetic `outbound_report_viewed` event so the
+ * engagement surfaces in Recent Activity. The event's `source` property
+ * records "manual_admin" so it can be distinguished from real click-throughs.
+ *
+ * Returns the number of fields changed (0 if the lead was already engaged
+ * or has no API report).
+ */
+export const markEngaged = mutation({
+    args: { leadId: v.id("leads") },
+    handler: async (ctx, args) => {
+        const lead = await ctx.db.get(args.leadId);
+        if (!lead)
+            return { ok: false, alreadyEngaged: false };
+        const alreadyEngaged = lead.firstEngagedAt != null;
+        const now = Date.now();
+        // Find the lead's most recent API-created report (if any).
+        const reports = await ctx.db
+            .query("signalReports")
+            .withIndex("by_leadId", (q) => q.eq("leadId", lead._id))
+            .order("desc")
+            .take(20);
+        const apiReport = reports.find((r) => r.createdViaApiKeyId != null) ?? null;
+        if (apiReport) {
+            const nextViewCount = (apiReport.viewCount ?? 0) + 1;
+            await ctx.db.patch(apiReport._id, {
+                firstViewedAt: apiReport.firstViewedAt ?? now,
+                viewCount: nextViewCount,
+            });
+            await ctx.db.insert("events", {
+                type: "outbound_report_viewed",
+                anonymousId: "",
+                leadId: lead._id,
+                sessionId: "",
+                path: `/report/${apiReport._id}`,
+                properties: {
+                    reportId: apiReport._id,
+                    viewCount: nextViewCount,
+                    url: apiReport.url,
+                    email: lead.email,
+                    firstName: lead.firstName ?? null,
+                    source: "manual_admin",
+                },
+                timestamp: now,
+            });
+        }
+        await ctx.db.patch(lead._id, {
+            firstEngagedAt: lead.firstEngagedAt ?? now,
+            lastEngagedAt: now,
+            engagementCount: (lead.engagementCount ?? 0) + 1,
+        });
+        return { ok: true, alreadyEngaged };
     },
 });

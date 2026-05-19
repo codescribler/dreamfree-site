@@ -465,12 +465,16 @@ export const tryEnrolFromReport = internalMutation({
             console.warn(`tryEnrolFromReport: lead ${report.leadId} not found`);
             return null;
         }
-        // Consent guard — only inbound leads (who came to us and submitted a form,
-        // or were promoted to inbound on first submission) get the marketing
-        // sequence. Outbound API-created leads have not consented to marketing
-        // email; a lead with no leadType is treated the same way, fail-safe.
-        if (lead.leadType !== "inbound") {
-            console.log(`tryEnrolFromReport: lead ${report.leadId} leadType=${lead.leadType ?? "unset"}, not inbound — skipping enrolment`);
+        // Consent guard — only inbound leads (who came to us and submitted a form
+        // on the public site) get the marketing sequence. We require BOTH
+        // `leadType === "inbound"` AND that the lead has NOT been API-targeted
+        // (`sources.includes("api_outbound")` is the durable marker). A historic
+        // bug in `runReportGeneration` promoted API-targeted leads to leadType
+        // "inbound" via `submitSignalScore`, so leadType alone is not a reliable
+        // consent signal. A lead with no leadType is treated the same way, fail-safe.
+        if (lead.leadType !== "inbound" ||
+            lead.sources.includes("api_outbound")) {
+            console.log(`tryEnrolFromReport: lead ${report.leadId} leadType=${lead.leadType ?? "unset"} sources=${JSON.stringify(lead.sources)} — skipping enrolment`);
             return null;
         }
         // Suppression guard

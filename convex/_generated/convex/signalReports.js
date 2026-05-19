@@ -138,6 +138,7 @@ export const enqueueReport = mutation({
             anonymousId: args.anonymousId,
             verifyCode: args.verifyCode,
             verifyToken: args.verifyToken,
+            isApiReport: false,
         });
         return reportId;
     },
@@ -502,6 +503,7 @@ export const enqueueReportFromApi = mutation({
             anonymousId: "",
             verifyCode: args.verifyCode,
             verifyToken: args.verifyToken,
+            isApiReport: true,
         });
         return reportId;
     },
@@ -586,9 +588,18 @@ export const getApiResponse = query({
  * createdViaApiKeyId) and for missing reports — callers fire this
  * inside a redirect hook where exceptions would break navigation, so
  * silent failure is the right shape.
+ *
+ * `source` defaults to `"verify_route"` (the normal click path).
+ * `"manual_admin"` is used by the admin "Mark as engaged" button when
+ * Daniel hand-tags a prospect he knows clicked before engagement
+ * tracking shipped. Both paths produce identical state — the source
+ * is recorded in the event properties for audit.
  */
 export const recordEngagement = mutation({
-    args: { reportId: v.id("signalReports") },
+    args: {
+        reportId: v.id("signalReports"),
+        source: v.optional(v.union(v.literal("verify_route"), v.literal("manual_admin"))),
+    },
     handler: async (ctx, args) => {
         const report = await ctx.db.get(args.reportId);
         if (!report)
@@ -609,13 +620,23 @@ export const recordEngagement = mutation({
                 engagementCount: (lead.engagementCount ?? 0) + 1,
             });
         }
+        // Carry the audited URL and the lead's email/name through to the event
+        // so Recent Activity rows can render them without an extra join. These
+        // are cheap to denormalise — they were already fetched above.
         await ctx.db.insert("events", {
             type: "outbound_report_viewed",
             anonymousId: "",
             leadId: report.leadId,
             sessionId: "",
             path: `/report/${report._id}`,
-            properties: { reportId: report._id, viewCount: nextViewCount },
+            properties: {
+                reportId: report._id,
+                viewCount: nextViewCount,
+                url: report.url,
+                email: lead?.email ?? null,
+                firstName: lead?.firstName ?? null,
+                source: args.source ?? "verify_route",
+            },
             timestamp: now,
         });
         return null;

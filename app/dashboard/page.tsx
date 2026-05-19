@@ -68,10 +68,14 @@ function getNumber(p: EventProps, key: string): number | null {
   return typeof v === "number" ? v : null;
 }
 
+function prettyHost(url: string): string {
+  return url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+}
+
 function activityLine(
   event: Doc<"events">,
   leadStub: LeadStub | null,
-): { who: string; what: string } {
+): { who: string; what: string; target: string | null } {
   const props = (event.properties ?? {}) as EventProps;
   const whoFromProps =
     getString(props, "firstName") ?? getString(props, "email");
@@ -85,41 +89,44 @@ function activityLine(
     case "outbound_report_viewed": {
       const url = getString(props, "url");
       const viewCount = getNumber(props, "viewCount") ?? 1;
-      const target = url ?? event.path;
       return {
         who,
-        what: `opened their report for ${target.replace(/^https?:\/\//, "").replace(/\/$/, "")} — view #${viewCount}`,
+        what: `opened their report — view #${viewCount}`,
+        target: url ? prettyHost(url) : null,
       };
     }
     case "scroll_depth": {
       const depth = getNumber(props, "depth");
       return {
         who,
-        what: depth != null ? `scrolled ${depth}% on ${event.path}` : `scrolled on ${event.path}`,
+        what: depth != null ? `scrolled ${depth}%` : "scrolled",
+        target: event.path,
       };
     }
     case "page_view":
-      return { who, what: `viewed ${event.path}` };
+      return { who, what: "viewed", target: event.path };
     case "cta_click": {
       const label = getString(props, "label");
       return {
         who,
-        what: label ? `clicked "${label}" on ${event.path}` : `clicked a CTA on ${event.path}`,
+        what: label ? `clicked "${label}"` : "clicked a CTA",
+        target: event.path,
       };
     }
     case "form_submission": {
       const formType = getString(props, "type");
       return {
         who,
-        what: formType ? `submitted the ${formType} form` : `submitted a form on ${event.path}`,
+        what: formType ? `submitted the ${formType} form` : "submitted a form",
+        target: event.path,
       };
     }
     case "signal_score_started":
-      return { who, what: "started a Signal Score audit" };
+      return { who, what: "started a Signal Score audit", target: null };
     case "signal_score_completed":
-      return { who, what: "completed a Signal Score audit" };
+      return { who, what: "completed a Signal Score audit", target: null };
     default:
-      return { who, what: `${event.type} on ${event.path}` };
+      return { who, what: event.type, target: event.path };
   }
 }
 
@@ -315,7 +322,7 @@ export default function DashboardPage() {
               const leadStub = event.leadId
                 ? recentActivity.leadsByLeadId[event.leadId] ?? null
                 : null;
-              const { who, what } = activityLine(event, leadStub);
+              const { who, what, target } = activityLine(event, leadStub);
 
               const rowBody = (
                 <>
@@ -332,6 +339,18 @@ export default function DashboardPage() {
                     <span className="font-medium">{who}</span>
                     <span className="text-muted"> {what}</span>
                   </span>
+                  {target ? (
+                    <span
+                      className={`hidden shrink-0 truncate rounded-md px-2 py-0.5 font-mono text-xs sm:inline-block sm:max-w-[16rem] ${
+                        isClickThrough
+                          ? "bg-teal/10 text-teal"
+                          : "bg-warm-grey text-charcoal"
+                      }`}
+                      title={target}
+                    >
+                      {target}
+                    </span>
+                  ) : null}
                   <span className="ml-auto shrink-0 text-xs text-muted">
                     {timeAgo(event.timestamp)}
                   </span>

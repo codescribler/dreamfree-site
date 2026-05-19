@@ -36,9 +36,14 @@ export const getActivity = query({
         ]);
         // Visibility filters — see
         // docs/superpowers/specs/2026-05-18-outbound-lead-visibility-design.md
-        // A lead is visible if it is inbound, or outbound-and-engaged.
+        // A lead is visible if they did not come via the API, or they have engaged.
         // An API report is visible if it has been viewed.
-        const leads = leadsRaw.filter((l) => l.leadType !== "outbound" || l.firstEngagedAt != null);
+        //
+        // Predicate is sources-based, not leadType-based: an earlier bug in
+        // `runReportGeneration` promoted API leads to leadType:"inbound" via
+        // `submitSignalScore`, so `leadType` is not retroactively trustworthy.
+        // `sources.includes("api_outbound")` is the durable marker.
+        const leads = leadsRaw.filter((l) => !l.sources.includes("api_outbound") || l.firstEngagedAt != null);
         const signalReports = signalReportsRaw.filter((r) => r.createdViaApiKeyId == null || r.firstViewedAt != null);
         const leadIds = new Set();
         const collectLeadId = (r) => {
@@ -62,8 +67,10 @@ export const getActivity = query({
                 return;
             // Re-apply the visibility rule when resolving — never leak a
             // dropped lead via the join map.
-            if (doc.leadType === "outbound" && doc.firstEngagedAt == null)
+            if (doc.sources.includes("api_outbound") &&
+                doc.firstEngagedAt == null) {
                 return;
+            }
             leadsReferenced[id] = doc;
         }));
         return {

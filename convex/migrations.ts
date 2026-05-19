@@ -30,6 +30,67 @@ export const backfillLeadType = internalMutation({
 });
 
 /**
+ * One-shot: backfill `url`/`email`/`firstName` onto `outbound_report_viewed`
+ * event properties for events emitted before the recordEngagement url-
+ * denormalisation deploy. Looks up the report via properties.reportId
+ * and the lead via event.leadId.
+ *
+ * Run with: npx convex run migrations:backfillEventUrls '{}'
+ */
+export const backfillEventUrls = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const events = await ctx.db
+      .query("events")
+      .withIndex("by_type_and_timestamp", (q) =>
+        q.eq("type", "outbound_report_viewed"),
+      )
+      .collect();
+
+    let patched = 0;
+    let alreadyHadUrl = 0;
+    let noReportProp = 0;
+    let reportNotFound = 0;
+
+    for (const event of events) {
+      const props = (event.properties ?? {}) as Record<string, unknown>;
+      if (typeof props.url === "string" && props.url.length > 0) {
+        alreadyHadUrl += 1;
+        continue;
+      }
+      const reportId = props.reportId;
+      if (typeof reportId !== "string") {
+        noReportProp += 1;
+        continue;
+      }
+      const report = await ctx.db.get(reportId as Doc<"signalReports">["_id"]);
+      if (!report) {
+        reportNotFound += 1;
+        continue;
+      }
+      const lead = event.leadId ? await ctx.db.get(event.leadId) : null;
+      await ctx.db.patch(event._id, {
+        properties: {
+          ...props,
+          url: report.url,
+          email: lead?.email ?? null,
+          firstName: lead?.firstName ?? null,
+        },
+      });
+      patched += 1;
+    }
+
+    return {
+      total: events.length,
+      patched,
+      alreadyHadUrl,
+      noReportProp,
+      reportNotFound,
+    };
+  },
+});
+
+/**
  * One-shot: backfill engagement on API-sourced leads from unambiguous
  * downstream signals — demo requests, callback requests, and inbound
  * contact-form submissions. Any one of those proves the prospect did
