@@ -245,6 +245,31 @@ const newest = demoRequests.reduce((acc, r) => Math.max(acc, r.updatedAt), since
 await fs.writeFile("./.cursor.json", String(newest));
 ```
 
+## Admin click suppression: `df-notrack=1`
+
+Every clickable demo URL rendered inside the Dreamfree dashboard
+(`/dashboard/demos` cards, the Demo Requests section of
+`/dashboard/leads/<id>`) is built by appending `df-notrack=1` to
+`demoUrl` via the helper at `lib/demo-link.ts:withNoTrack`. The intent:
+Daniel's own click-throughs from the admin while reviewing demos
+must **not** be recorded as prospect engagement.
+
+When the demo-side analytics script is wired up (see the project memory
+note on demo view auto-detection — that work is deferred), it MUST
+honour this convention:
+
+> If the URL the script is running on contains `df-notrack=1` in its
+> query string, do not POST any analytics events to the dreamfree
+> backend for this page load. The dashboard will continue to surface
+> a deployed URL, but visits from Daniel won't artificially inflate
+> the prospect's engagement score.
+
+The flag is appended only by the dashboard renderers — the API itself
+stores the raw `demoUrl` exactly as POSTed via `/api/v1/demo-requests/{id}/deploy`,
+and prospect-facing links (sent by the demo-builder via email or the
+external API caller) must NOT use the helper. Prospect clicks are the
+signal we care about.
+
 ## Notes on the dashboard board
 
 The board at `https://dreamfree.co.uk/dashboard/demos` reads the same Convex

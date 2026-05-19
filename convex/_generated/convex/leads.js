@@ -152,6 +152,155 @@ export const getById = query({
     },
 });
 /**
+ * Same visible-leads result as `leads.list`, plus a side-map of engagement
+ * signals per lead so the dashboard can surface "what has each lead actually
+ * done" inline with the row.
+ *
+ * Returned shape:
+ *   - `leads` — same array `list` returns
+ *   - `latestEventByLeadId` — most-recent event per lead, with /report/<id>
+ *     paths server-resolved to the audited URL (matches what Recent
+ *     Activity shows). Null if no events.
+ *   - `engagementByLeadId` — { eventCount, viewedReportCount,
+ *     maxScrollDepth, formSubmissionCount, hasDemoRequest,
+ *     hasCallbackRequest } per lead. Future lead-scoring will key off
+ *     these primitives.
+ *
+ * Performance: 1 events query per visible lead (capped at .take(20)) plus
+ * three small bulk fetches of demoRequests / callbackRequests /
+ * formSubmissions. At current volume cheaper than a denormalised counter;
+ * revisit once any of those tables crosses a few thousand rows.
+ */
+export const listWithEngagement = query({
+    args: {
+        limit: v.optional(v.number()),
+        visibility: v.optional(v.union(v.literal("topLevel"), v.literal("all"))),
+    },
+    handler: async (ctx, args) => {
+        // 1. Reuse the same visibility filter as `list` — duplicated inline to
+        //    avoid a query-from-query call.
+        const limit = args.limit ?? 50;
+        const visibility = args.visibility ?? "topLevel";
+        let leads;
+        if (visibility === "all") {
+            leads = await ctx.db
+                .query("leads")
+                .withIndex("by_createdAt")
+                .order("desc")
+                .take(limit);
+        }
+        else {
+            const sample = await ctx.db
+                .query("leads")
+                .withIndex("by_createdAt")
+                .order("desc")
+                .take(Math.max(limit * 3, 200));
+            leads = sample
+                .filter((l) => !l.sources.includes("api_outbound") || l.firstEngagedAt != null)
+                .slice(0, limit);
+        }
+        const leadIdSet = new Set(leads.map((l) => l._id));
+        // 2. Bulk-fetch the smaller signal tables, group by leadId. These are
+        //    "did this lead ever do X" lookups — counts are bounded by table
+        //    size, not by leads.length.
+        const [demoRows, callbackRows, formRows] = await Promise.all([
+            ctx.db.query("demoRequests").take(2000),
+            ctx.db.query("callbackRequests").take(2000),
+            ctx.db.query("formSubmissions").take(5000),
+        ]);
+        const demoLeadIds = new Set();
+        for (const r of demoRows) {
+            if (leadIdSet.has(r.leadId))
+                demoLeadIds.add(r.leadId);
+        }
+        const callbackLeadIds = new Set();
+        for (const r of callbackRows) {
+            if (leadIdSet.has(r.leadId))
+                callbackLeadIds.add(r.leadId);
+        }
+        const formCountByLead = new Map();
+        for (const r of formRows) {
+            if (!r.leadId)
+                continue;
+            if (!leadIdSet.has(r.leadId))
+                continue;
+            formCountByLead.set(r.leadId, (formCountByLead.get(r.leadId) ?? 0) + 1);
+        }
+        // 3. Per-lead events lookup + report-URL resolution.
+        const reportPathRe = /^\/report\/([a-z0-9]+)/i;
+        const eventsPerLead = await Promise.all(leads.map(async (lead) => {
+            const events = await ctx.db
+                .query("events")
+                .withIndex("by_leadId", (q) => q.eq("leadId", lead._id))
+                .order("desc")
+                .take(20);
+            return { leadId: lead._id, events };
+        }));
+        const reportIdSet = new Set();
+        for (const { events } of eventsPerLead) {
+            for (const e of events) {
+                const props = (e.properties ?? {});
+                if (typeof props.url === "string" && props.url.length > 0)
+                    continue;
+                const m = e.path.match(reportPathRe);
+                if (m)
+                    reportIdSet.add(m[1]);
+            }
+        }
+        const reportUrlById = {};
+        await Promise.all(Array.from(reportIdSet).map(async (id) => {
+            try {
+                const r = await ctx.db.get(id);
+                if (r)
+                    reportUrlById[id] = r.url;
+            }
+            catch {
+                // Bad id — skip.
+            }
+        }));
+        function enrich(e) {
+            const props = (e.properties ?? {});
+            if (typeof props.url === "string" && props.url.length > 0)
+                return e;
+            const m = e.path.match(reportPathRe);
+            if (!m)
+                return e;
+            const url = reportUrlById[m[1]];
+            if (!url)
+                return e;
+            return { ...e, properties: { ...props, url, reportId: m[1] } };
+        }
+        // 4. Build the side maps.
+        const latestEventByLeadId = {};
+        const engagementByLeadId = {};
+        for (const { leadId, events } of eventsPerLead) {
+            const enriched = events.map(enrich);
+            const last = enriched[0] ?? null;
+            latestEventByLeadId[leadId] = last;
+            const viewedReportCount = events.filter((e) => e.type === "outbound_report_viewed").length;
+            let maxScrollDepth = 0;
+            for (const e of events) {
+                if (e.type !== "scroll_depth")
+                    continue;
+                const depth = e.properties?.depth;
+                if (typeof depth === "number" && depth > maxScrollDepth) {
+                    maxScrollDepth = depth;
+                }
+            }
+            engagementByLeadId[leadId] = {
+                eventCount: events.length,
+                viewedReportCount,
+                maxScrollDepth,
+                formSubmissionCount: formCountByLead.get(leadId) ?? 0,
+                hasDemoRequest: demoLeadIds.has(leadId),
+                hasCallbackRequest: callbackLeadIds.has(leadId),
+                lastActivityAt: last?.timestamp ?? null,
+            };
+        }
+        return { leads, latestEventByLeadId, engagementByLeadId };
+    },
+});
+/**
  * Public wrapper for upsertLead — used by the Next.js API route
  * via ConvexHttpClient (which can't call internal mutations).
  */

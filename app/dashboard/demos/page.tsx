@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
+import { withNoTrack } from "@/lib/demo-link";
 
 type Status = Doc<"demoRequests">["status"];
 
@@ -225,7 +226,7 @@ function DemoCard({
 
       {request.demoUrl ? (
         <a
-          href={request.demoUrl}
+          href={withNoTrack(request.demoUrl)}
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}

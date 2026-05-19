@@ -8,6 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { EmailCampaignSection } from "./EmailCampaignSection";
+import { withNoTrack } from "@/lib/demo-link";
 
 const EVENT_LABELS: Record<string, string> = {
   page_view: "Page View",
@@ -301,7 +302,7 @@ export default function LeadDetailPage() {
                   <span>Requested {formatDate(req.createdAt)}</span>
                   {req.demoUrl ? (
                     <a
-                      href={req.demoUrl}
+                      href={withNoTrack(req.demoUrl)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="rounded-md bg-indigo-50 px-2 py-1 font-semibold text-indigo-700 hover:bg-indigo-100"
