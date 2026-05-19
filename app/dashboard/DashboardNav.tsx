@@ -8,15 +8,19 @@ import { api } from "@/convex/_generated/api";
 export function DashboardNav() {
   const pathname = usePathname();
   const outboundCount = useQuery(api.leads.countOutbound, {});
+  const demoCount = useQuery(api.demoRequests.countActive, {});
 
   const apiLeadsLabel =
     outboundCount === undefined
       ? "API leads"
       : `API leads (${outboundCount})`;
+  const demosLabel =
+    demoCount === undefined ? "Demos" : `Demos (${demoCount})`;
 
   const navItems = [
     { href: "/dashboard", label: "Leads" },
     { href: "/dashboard/api-leads", label: apiLeadsLabel },
+    { href: "/dashboard/demos", label: demosLabel },
     { href: "/dashboard/insights", label: "Insights" },
     { href: "/dashboard/email-campaigns", label: "Email Campaigns" },
     { href: "/dashboard/admin/models", label: "AI Models" },
