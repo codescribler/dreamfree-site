@@ -121,18 +121,45 @@ export const linkAnonymousEvents = internalMutation({
   },
 });
 
-/** List all leads, newest first. */
+/** List leads, newest first.
+ *
+ * `visibility`:
+ *   - "topLevel" (default) — inbound leads + outbound leads with firstEngagedAt set.
+ *   - "all" — every lead, including unengaged outbound.
+ *
+ * Strategy: fetch a 3× sample by createdAt desc and JS-filter. At current
+ * lead volume this is cheaper than a compound index and matches the pattern
+ * used by countByStatus.
+ */
 export const list = query({
   args: {
     limit: v.optional(v.number()),
+    visibility: v.optional(
+      v.union(v.literal("topLevel"), v.literal("all")),
+    ),
   },
   handler: async (ctx, args) => {
     const limit = args.limit ?? 50;
-    return await ctx.db
+    const visibility = args.visibility ?? "topLevel";
+
+    if (visibility === "all") {
+      return await ctx.db
+        .query("leads")
+        .withIndex("by_createdAt")
+        .order("desc")
+        .take(limit);
+    }
+
+    const sample = await ctx.db
       .query("leads")
       .withIndex("by_createdAt")
       .order("desc")
-      .take(limit);
+      .take(Math.max(limit * 3, 200));
+
+    const filtered = sample.filter(
+      (l) => l.leadType !== "outbound" || l.firstEngagedAt != null,
+    );
+    return filtered.slice(0, limit);
   },
 });
 
